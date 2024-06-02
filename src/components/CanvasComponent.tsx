@@ -2,10 +2,11 @@
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import React, { useRef, useEffect, useState } from 'react';
-import { Button, Col, Container, Modal, Row, Table } from 'react-bootstrap';
+import { Button, Card, Col, Container, Form, Modal, Row, Table } from 'react-bootstrap';
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, CardList, CaretRight, BoxArrowInDownLeft } from 'react-bootstrap-icons';
 import { IPlay, KeyboardStick, ButtonType, saveData, GamepadStick } from '../services/PlayData';
 import { TitlePlay } from '../services/TitlePlay';
+import { setBgmVolumeLevel, setEffectVolumeLevel } from '../services/SoundData';
 
 interface CanvasComponentProps {
   // ここに必要なプロパティを追加
@@ -218,7 +219,7 @@ const CanvasComponent: React.FC<CanvasComponentProps> = () => {
             <tr><th colSpan={2}>キー</th><th>操作内容</th></tr>
           </thead>
           <tbody>
-            <tr><td><ArrowUp></ArrowUp></td><td>{keyLabels[0]}</td><td rowSpan={4}>プレイヤー移動<br />データ・モード選択<br/>フロア選択</td></tr>
+            <tr><td><ArrowUp></ArrowUp></td><td>{keyLabels[0]}</td><td rowSpan={4}>プレイヤー移動<br />データ・モード選択<br />フロア選択</td></tr>
             <tr><td><ArrowLeft></ArrowLeft></td><td>{keyLabels[1]}</td></tr>
             <tr><td><ArrowDown></ArrowDown></td><td>{keyLabels[2]}</td></tr>
             <tr><td><ArrowRight></ArrowRight></td><td>{keyLabels[3]}</td></tr>
@@ -231,6 +232,33 @@ const CanvasComponent: React.FC<CanvasComponentProps> = () => {
         {
           padEnabled && <Button onClick={(event) => openDialog(true, event.target as HTMLButtonElement)} style={{ marginLeft: "1em" }}>パッド設定</Button>
         }
+        <Form>
+          <Table bordered striped style={{ marginLeft: '1em', marginTop: '1em' }}>
+            <thead>
+              <tr><th colSpan={2}>サウンド設定</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <Form.Label>BGM</Form.Label>
+                </td><td>
+                  <Form.Control type='range' min="0" max="1" step="0.01" defaultValue="0" onChange={e => {
+                    setBgmVolumeLevel(parseFloat(e.target.value || "0"));
+                  }} />
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <Form.Label>効果音</Form.Label>
+                </td><td>
+                  <Form.Control type='range' min="0" max="1" step="0.01" defaultValue="0" onChange={e => {
+                    setEffectVolumeLevel(parseFloat(e.target.value || "0"));
+                  }} />
+                </td>
+              </tr>
+            </tbody>
+          </Table>
+        </Form>
         <Modal show={isOpen} onHide={closeDialog}>
           <Modal.Header>
             <Modal.Title>{padConfig ? "パッド設定" : "キー設定"}</Modal.Title>

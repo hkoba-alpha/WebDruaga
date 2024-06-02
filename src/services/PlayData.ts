@@ -4,8 +4,11 @@ export interface SaveData {
     id?: number;
     num: number;
     data: {
+        curStage: number;
         maxStage: number;
-        playCount: number;
+        continueCount: number;
+        restPlayer: number;
+        continueFlag: boolean;
         itemMap: {
             [name: string]: number;
         };
@@ -48,7 +51,10 @@ class GameSaveData extends Dexie {
             return {
                 num: num,
                 data: {
-                    playCount: 0,
+                    curStage: 1,
+                    continueFlag: false,
+                    continueCount: 0,
+                    restPlayer: 2,
                     maxStage: 1,
                     itemMap: {},
                     evilMap: {}

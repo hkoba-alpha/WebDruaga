@@ -1,4 +1,4 @@
-import { IshtarKai, ItemEnemy } from "./Enemy";
+import { Dragon, IshtarKai, ItemEnemy } from "./Enemy";
 import { BLOCK_SIZE, EnemyData, EventBase, EventData, EventEntry, EventResult, FLOOR_HEIGHT, FLOOR_WIDTH, KEY_ITEM, NECKLACE_ITEM, ROD_ITEM, StageData } from "./StageData";
 
 class DeadEvent extends EventBase {
@@ -34,11 +34,28 @@ class DeadEvent extends EventBase {
 }
 
 class BreakEvent extends EventBase {
-    constructor(private count: number) {
+    constructor(private count: number, private position: number[]) {
         super();
     }
     public checkEvent(data: StageData, event: EventData[]): EventResult {
-        let cnt = this.getCount(event, "Break", () => true);
+        let cnt = this.getCount(event, "Break", (pos) => {
+            if (this.position.length > 0) {
+                if (this.position[0] >= 0 && this.position[0] !== pos.x) {
+                    return false;
+                }
+                if (this.position.length > 1) {
+                    if (this.position[1] >= 0 && this.position[1] !== pos.y) {
+                        return false;
+                    }
+                    if (this.position.length > 2) {
+                        if (this.position[2] !== pos.dir) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        });
         if (cnt > 0) {
             this.count -= cnt;
             if (this.count <= 0) {
@@ -51,8 +68,8 @@ class BreakEvent extends EventBase {
     }
 
     @EventEntry("Break")
-    public static makeEvent(count: string): EventBase {
-        return new BreakEvent(parseInt(count));
+    public static makeEvent(count: string, ...opt: string[]): EventBase {
+        return new BreakEvent(parseInt(count), opt.map(v => parseInt(v)));
     }
 }
 
@@ -117,6 +134,9 @@ class SpellEvent extends EventBase {
                 case 3:
                     // Body
                     opt = flag | 4;
+                    if (data.playerData.getSwordIndex() !== 0) {
+                        opt |= 2;
+                    }
                     break;
             }
             if (this.options.length === 0 || this.options.includes(opt)) {
@@ -168,7 +188,7 @@ class WalkPos extends EventBase {
      * @param bx -1:任意
      * @param by -1:任意
      * @param dir 1:上, 2:右, 4:下, 8:左のフラグの組み合わせ
-     * @param swordFlag 0:しまっている 1:剣を出している
+     * @param swordFlag 0:しまっている 1-3:剣を出しはじめ, 4:剣を出している, 5-7:しまいはじめ
      * @param flag 0:止まっている, 1:歩いている, 2:離れた瞬間
      */
     constructor(private bx: number, private by: number, private dir: number, private swordFlag: number, private flag: number) {
@@ -672,7 +692,79 @@ class GilMoveFamUra4 extends EventBase {
         }
         return EventResult.None;
     }
-
+}
+class GilMoveFamUra25 extends EventBase {
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        // タイムが赤くなる時に扉と軸を合わせて剣を出している
+        if (data.isRedTime()) {
+            // チェックする
+            if (data.playerData.getSwordIndex() === 4) {
+                const pos = data.playerData.getPosition();
+                const pos2 = data.getDoorPos();
+                if (pos.x === pos2.x * BLOCK_SIZE || pos.y === pos2.y * BLOCK_SIZE) {
+                    return EventResult.OK;
+                }
+            }
+            return EventResult.NG;
+        }
+        return EventResult.None;
+    }
+}
+class GilMoveFamUra31 extends EventBase {
+    private count = 0;
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        if (!data.playerData.isWalk() && data.playerData.getSwordIndex() === 4) {
+            const pos = data.playerData.getPosition();
+            if ((pos.x % BLOCK_SIZE) > 0 || (pos.y % BLOCK_SIZE) > 0) {
+                this.count++;
+                if (this.count % 60 === 0) {
+                    if (this.count >= 600) {
+                        return EventResult.OK;
+                    }
+                    return EventResult.Next;
+                }
+            } else {
+                this.count = 0;
+            }
+        } else {
+            this.count = 0;
+        }
+        return EventResult.None;
+    }
+}
+class GilMoveFamUra45 extends EventBase {
+    private count = 0;
+    private lastDistance = 0;
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        // チョン、チョンと方向キーを押しながら鍵を取る
+        if (data.playerData.getItem(KEY_ITEM) > 0) {
+            return this.count > 8 ? EventResult.OK : EventResult.NG;
+        } else {
+            const pos = data.playerData.getPosition();
+            const pos2 = data.getKeyPos();
+            const dist = Math.max(Math.abs(pos.x - pos2.x * BLOCK_SIZE), Math.abs(pos.y - pos2.y * BLOCK_SIZE));
+            if (dist < BLOCK_SIZE) {
+                // 鍵の近く
+                if (dist > this.lastDistance) {
+                    this.count = 0;
+                } else {
+                    if (this.count & 1) {
+                        if (!data.playerData.isWalk()) {
+                            // 離す
+                            this.count++;
+                        }
+                    } else if (data.playerData.isWalk()) {
+                        // 押して近づく
+                        this.count++;
+                    }
+                }
+            } else {
+                this.count = 0;
+            }
+            this.lastDistance = dist;
+        }
+        return EventResult.None;
+    }
 }
 
 class GilMove {
@@ -696,6 +788,12 @@ class GilMove {
             return new GilMoveFloor51();
         } else if (name === "FamUra4") {
             return new GilMoveFamUra4();
+        } else if (name === "FamUra25") {
+            return new GilMoveFamUra25();
+        } else if (name === "FamUra31") {
+            return new GilMoveFamUra31();
+        } else if (name === "FamUra45") {
+            return new GilMoveFamUra45();
         } else {
             console.log("Unkown GilMove", name);
         }
@@ -756,6 +854,30 @@ class EnemyMoveFamUra19 extends EventBase {
         return EventResult.None;
     }
 }
+class EnemyMoveFamUra32 extends EventBase {
+    private lastDir = 0;
+
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        // クオックスが下向きの時に倒す
+        let cnt = this.getCount(event, 'Dead', v => v === 'QUOX_Dragon');
+        if (cnt > 0) {
+            if (this.lastDir === 3) {
+                return EventResult.OK;
+            } else {
+                return EventResult.NG;
+            }
+        } else {
+            for (let ene of data.getEnemyList()) {
+                if (ene instanceof Dragon) {
+                    this.lastDir = (ene as Dragon).getDir();
+                    break;
+                }
+            }
+        }
+        return EventResult.None;
+    }
+
+}
 
 class EnemyMove {
     @EventEntry("EnemyMove")
@@ -766,6 +888,8 @@ class EnemyMove {
             return new EnemyMoveFamUra5();
         } else if (name === "FamUra19") {
             return new EnemyMoveFamUra19();
+        } else if (name === "FamUra32") {
+            return new EnemyMoveFamUra32();
         } else {
             console.log("Unknown EnemyMove", name);
         }
@@ -802,6 +926,42 @@ class EneCount extends EventBase {
     }
 }
 
+/**
+ * 一定時間条件を満たし続ける
+ */
+class ContEvent extends EventBase {
+    private count: number = 0;
+    constructor(private timeCount: number, private eventList: EventBase[]) {
+        super();
+    }
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        let ok = true;
+        for (let ev of this.eventList) {
+            const res = ev.checkEvent(data, event);
+            if (res === EventResult.NG) {
+                return res;
+            } else if (res !== EventResult.OK && res !== EventResult.Hold) {
+                ok = false;
+                break;
+            }
+        }
+        if (ok) {
+            this.count++;
+            if (this.count >= this.timeCount) {
+                return EventResult.OK;
+            } else if (this.count % 60 === 0) {
+                return EventResult.Next;
+            }
+        } else {
+            this.count = 0;
+        }
+        return EventResult.None;
+    }
+    @EventEntry("Cont")
+    static makeEvent(count: string, ...list: EventBase[]): EventBase {
+        return new ContEvent(parseInt(count), list);
+    }
+}
 
 class RestTime extends EventBase {
     constructor(private time: number) {
@@ -956,21 +1116,25 @@ class StickEvent extends EventBase {
             stk = 3;
         } else if (data.playerData.stick.isLeft()) {
             stk = 4;
-        } else if (data.playerData.stick.isSelect()) {
+        } else if (data.playerData.stick.isPause()) {
             stk = 5;
+        } else if (data.playerData.stick.isSelect()) {
+            stk = 6;
         }
         if (stk === 0) {
             this.neutral = true;
             return EventResult.None;
         }
         if (this.neutral) {
-            let target = "*URDL1".indexOf(this.stick.charAt(this.index));
+            let target = "*URDL12".indexOf(this.stick.charAt(this.index));
             this.neutral = false;
             if (target === stk) {
                 this.index++;
                 if (this.index < this.stick.length) {
                     return EventResult.Next;
                 } else {
+                    // SameTimeを考慮して元に戻す
+                    this.index = 0;
                     return EventResult.OK;
                 }
             } else {
@@ -1149,7 +1313,7 @@ class RestHP extends EventBase {
     public checkEvent(data: StageData, event: EventData[]): EventResult {
         if (this.enemy.length === 0) {
             if (data.playerData.getHP() <= this.hp) {
-                return EventResult.Hold;
+                return EventResult.OK;
             }
         } else {
             for (let ene of data.getEnemyList()) {
@@ -1165,5 +1329,15 @@ class RestHP extends EventBase {
     @EventEntry("RestHP")
     static makeEvent(hp: string, ...enemy: string[]): EventBase {
         return new RestHP(parseInt(hp), enemy);
+    }
+}
+
+class NoTreasure extends EventBase {
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        return EventResult.None;
+    }
+    @EventEntry("NoTreasure")
+    static makeEvent(): EventBase {
+        return new NoTreasure();
     }
 }

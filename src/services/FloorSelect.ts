@@ -8,19 +8,25 @@ export class FloorSelect implements IPlay {
     private maxStage = 0;
     private stageNum = 0;
     private startRender: StartRender;
+    private autoStart = false;
 
     public constructor(gl: WebGL2RenderingContext, private playerData: PlayerData) {
         this.fontRender = getFontRender(gl);
         this.startRender = getStartRender(gl);
-        this.playerData.loadData().then(maxStage => {
-            this.maxStage = maxStage;
-            this.stageNum = maxStage;
+        this.playerData.loadData().then(dt => {
+            this.maxStage = dt.maxStage;
+            this.stageNum = dt.curStage;
+            if (!dt.continueFlag) {
+                this.autoStart = true;
+            }
             // TODO
+            //this.autoStart = false;
             /*
             this.maxStage = 60;
-            this.playerData.gotItem(ROD_ITEM + ':1');
-            this.playerData.gotItem(ROD_ITEM + ':2');
-            this.playerData.gotItem(ROD_ITEM + ':3');
+            this.playerData.gotItem('ROD:1');
+            this.playerData.gotItem('ROD:2');
+            this.playerData.gotItem('ROD:4');
+            this.playerData.gotItem('BOOTS:1');
             */
         });
     }
@@ -35,7 +41,7 @@ export class FloorSelect implements IPlay {
         if (this.maxStage < 1) {
             return this;
         }
-        if (stick.isPause(true) || this.maxStage === 1) {
+        if (stick.isPause(true) || this.autoStart) {
             return new FloorStart(gl, this.playerData, this.stageNum);
         }
         let add = 0;

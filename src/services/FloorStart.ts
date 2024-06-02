@@ -1,6 +1,7 @@
 //import { AllClearPlay } from "./AllClearPlay";
 import { FontRender, getFontRender } from "./FontRender";
 import { IPlay, StickData, saveData } from "./PlayData";
+import { playBgm } from "./SoundData";
 import { SpriteData } from "./SpriteData";
 import { PlayerData, StageData, StageLoader } from "./StageData";
 import { StagePlay, StageRender, getStageRender } from "./StagePlay";
@@ -403,7 +404,7 @@ export class FloorStart implements IPlay {
     static stageLoader: StageLoader;
     static gameMode: number = 0;
 
-    private count: number = 1;
+    private count: number = 100;
     private fontRender: FontRender;
     private startRender: StartRender;
     private stageRender: StageRender;
@@ -477,10 +478,10 @@ export class FloorStart implements IPlay {
         }
         this.fontRender = getFontRender(gl);
         if (save) {
-            this.playerData.saveData(stageNum).then();
+            this.playerData.saveData(stageNum, stageNum, false).then();
         } else {
             saveData.getSaveData(this.playerData.saveNum).then(dt => {
-                this.playerData.saveData(Math.max(dt.data.maxStage, stageNum)).then();
+                this.playerData.saveData(stageNum, Math.max(dt.data.maxStage, stageNum), false).then();
             });
         }
         const target = stageNum;
@@ -495,6 +496,8 @@ export class FloorStart implements IPlay {
         this.length = this.posData[0].length;
         this.look = this.posData[0].look;
         this.near = this.posData[0].near;
+
+        playBgm('FloorStart', 1).then(() => { this.count = 30; });
     }
     private makeStage(gl: WebGL2RenderingContext): void {
         this.stageData = FloorStart.stageLoader.getStage(gl, this.playerData, this.stageNum);

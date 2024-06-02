@@ -1,3 +1,4 @@
+import { playDamage, playEffect } from "./SoundData";
 import { SpriteData } from "./SpriteData";
 import { ARMOR_ITEM, BALANCE_ITEM, BLOCK_SIZE, BOOTS_ITEM, CANDLE_ITEM, EnemyData, EnemyEntry, FLOOR_HEIGHT, FLOOR_WIDTH, GUNTLET_ITEM, HELMET_ITEM, HitRect, MEITH_ITEM, NECKLACE_ITEM, PEARL_ITEM, POTION_OF_CURE, POTION_OF_DRAGON_POT, PlayMode, PlayerData, RING_ITEM, ROD_ITEM, SHIELD_ITEM, STAGE_DEATH, STAGE_KILL_DRUAGA, SWORD_ITEM, SpritePosition, StageData, getMoveAdd, setTimerProc } from "./StageData";
 
@@ -130,12 +131,12 @@ export class Slime extends EnemyData {
  * hp, attack, 回復量
  */
 const knightParams: { [name: string]: number[] } = {
-    blue: [24, 1, 9, 24],
-    black: [48, 1, 21, 48],
-    mirror: [48, 1, 21, 48],
-    hyper: [96, 1, 48, 96],
-    lizard: [96, 2, 48, 96],
-    red: [144, 1, 9, 24],
+    blue: [24, 1, 24, 9, 24],
+    black: [48, 1, 48, 21, 48],
+    mirror: [48, 1, 48, 21, 48],
+    hyper: [96, 1, 96, 48, 96],
+    lizard: [96, 2, 96, 48, 96],
+    red: [144, 1, 24, 9, 24],
     green_roper: [58, 1, 21],
     red_roper: [58, 1, 21],
     blue_roper: [58, 1, 21],
@@ -161,6 +162,9 @@ class Knight extends EnemyData {
     }
     protected canMove(data: StageData, dir: number, nextDir: number): boolean {
         return true;
+    }
+    public getDir(): number {
+        return this.dir;
     }
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
         let nextDir = (this.dir + 3 + this.moveDir) % 4 + 1;
@@ -219,6 +223,8 @@ class Knight extends EnemyData {
         this.hitPoint -= atk;
         if (this.hitPoint <= 0) {
             this.onDead(data);
+        } else {
+            playDamage();
         }
     }
     protected attacked(data: StageData): void {
@@ -422,7 +428,7 @@ class Roper extends Knight {
 }
 const FIRE_STEP = 8;
 
-class Dragon extends Knight {
+export class Dragon extends Knight {
     /**
      * 0:歩いている, 1:左右を見渡す, 2:炎を吐く, 3:壁を壊す, 4:パールで止まっている
      */
@@ -736,6 +742,7 @@ class Spell extends EnemyData {
                 type: 0
             }
         });
+        playEffect('SpellStart').then();
     }
     private makeFire(gl: WebGL2RenderingContext, data: StageData): void {
         if (this.curX === this.startX && this.curY === this.startY) {
@@ -745,6 +752,7 @@ class Spell extends EnemyData {
         const fire = new SpellFire(data.getSprite(gl, "Spell_Fire"), this.srcName);
         fire.init(this.curX / BLOCK_SIZE, this.curY / BLOCK_SIZE);
         data.addEnemy(fire);
+        playEffect('SpellFire').then();
     }
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
         const bx = this.curX / BLOCK_SIZE;
@@ -800,6 +808,7 @@ class Spell extends EnemyData {
                 type: Math.abs(this.dir - data.playerData.getDir()) === 2 ? 1 : 2
             }
         });
+        playEffect('SpellCatch').then();
     }
     public getAttackRect(): HitRect {
         let sx = this.curX + 1;
@@ -859,6 +868,7 @@ class Spell extends EnemyData {
                     type: 3
                 }
             });
+            playEffect('SpellCatch').then();
             return;
         }
         super.attacked(data);
@@ -1172,6 +1182,8 @@ class Ghost extends EnemyData {
         this.hitPoint -= atk;
         if (this.hitPoint <= 0) {
             this.onDead(data);
+        } else {
+            playDamage();
         }
     }
     protected checkDamage(player: PlayerData): boolean {
@@ -1375,6 +1387,7 @@ class Excalibur extends EnemyData {
             } else {
                 data.setStageFlag(STAGE_DEATH);
             }
+            playEffect('ItemGet').then();
             data.removeEnemy(this);
         }
     }
@@ -1402,7 +1415,7 @@ class Excalibur extends EnemyData {
     }
 }
 
-class Saccubus extends EnemyData {
+export class Saccubus extends EnemyData {
     private index: number = 1;
     private damage: boolean = false;
     private fakeFlag: boolean = false;

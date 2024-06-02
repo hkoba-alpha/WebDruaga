@@ -3,7 +3,8 @@
  * 24x24がブロック１つ
  */
 
-import { StickData, saveData } from "./PlayData";
+import { SaveData, StickData, saveData } from "./PlayData";
+import { playBgm, playEffect, setChime } from "./SoundData";
 import { PlayerSpriteData, SpriteData } from "./SpriteData";
 
 export const STAGE_FILE_NAME = "stage";
@@ -435,6 +436,7 @@ export abstract class EnemyData {
     protected onDead(data: StageData): void {
         data.removeEnemy(this);
         data.addEvent({ type: "Dead", value: this.name });
+        playEffect('Dead').then();
     }
 
     protected gotDamage(data: StageData): void {
@@ -628,18 +630,30 @@ export class PlayerData {
         this.init(gl, 0, 0);
     }
 
-    public async loadData(): Promise<number> {
+    public async loadData(): Promise<{ curStage: number; maxStage: number; continueFlag: boolean; }> {
         const dt = await saveData.getSaveData(this.saveNum);
         this.itemMap = dt.data.itemMap;
         this.evilMap = dt.data.evilMap;
-        this.playCount = dt.data.playCount + 1;
-        return dt.data.maxStage;
+        this.playCount = (dt.data.continueCount || 0);
+        this.resetPlayer = dt.data.restPlayer;
+        if (dt.data.continueFlag) {
+            // コンティニュー可能
+            this.resetPlayer = 2;
+            this.playCount++;
+        }
+        return dt.data;
     }
-    public async saveData(maxStage: number): Promise<void> {
+    public getPlayCount(): number {
+        return this.playCount;
+    }
+    public async saveData(curStage: number, maxStage: number, contFlag: boolean): Promise<void> {
         await saveData.updateSaveData({
             num: this.saveNum,
             data: {
-                playCount: this.playCount,
+                curStage: curStage,
+                continueFlag: contFlag,
+                restPlayer: this.resetPlayer,
+                continueCount: this.playCount,
                 itemMap: this.itemMap,
                 evilMap: this.evilMap,
                 maxStage: maxStage
@@ -862,10 +876,12 @@ export class PlayerData {
                     }
                 } else {
                     const pos = data.getKeyPos();
-                    if (pos.x === this.x / BLOCK_SIZE && pos.y === this.y / BLOCK_SIZE) {
+                    if (pos.x === this.x / BLOCK_SIZE && pos.y === this.y / BLOCK_SIZE && !this.hasItem(KEY_ITEM)) {
                         // 鍵を取った
                         this.chimeCount = 0;
+                        setChime(2);
                         this.gotItem(KEY_ITEM);
+                        playEffect('KeyGet').then();
                     }
                 }
                 // 宝
@@ -882,6 +898,7 @@ export class PlayerData {
                             }
                         }
                         if (ok) {
+                            playEffect('ItemGet').then();
                             data.setTreasure(0);
                             // potion of deathは、次にスタートした時から有効, キュアで消えない
                             // potion of cureはdeath状態だった場合はその場限りで直す
@@ -903,9 +920,13 @@ export class PlayerData {
             if (pos.x * BLOCK_SIZE > this.x && this.dir === 2) {
                 // 右にある
                 this.chimeDir = 1;
+                setChime(1);
             } else if (pos.x * BLOCK_SIZE < this.x && this.dir === 4) {
                 // 左にある
                 this.chimeDir = -1;
+                setChime(1);
+            } else {
+                setChime(2);
             }
             if (this.chimeDir !== 0) {
                 this.chimeCount--;
@@ -916,6 +937,9 @@ export class PlayerData {
                 this.swordCount = Math.min(this.swordCount + this.swordSpeed, SWORD_MIDDLE);
             }
         } else if (this.swordMode === 2) {
+            if (this.swordCount === SWORD_MIDDLE) {
+                playEffect('SwordEnd').then();
+            }
             this.swordCount += this.swordSpeed;
             if (this.swordCount >= SWORD_END) {
                 this.swordCount = 0;
@@ -931,10 +955,12 @@ export class PlayerData {
                         const blk = data.breakWall(this.x / BLOCK_SIZE, this.y / BLOCK_SIZE, this.dir);
                         if (blk === 1) {
                             // 壁を壊した
+                            /*
                             data.addEvent({
                                 type: 'Break',
                                 value: 'Gil'
                             });
+                            */
                             if (data.isLastFloor()) {
                                 data.setPlayMode(PlayMode.ZapWait);
                                 return;
@@ -948,6 +974,7 @@ export class PlayerData {
                     }
                 }
                 if (this.swordSpeed > 0) {
+                    playEffect('SwordStart').then();
                     this.swordMode = 1;
                     this.swordCount = 1;
                 }
@@ -1177,7 +1204,9 @@ export class PlayerData {
         }
         if (dt[0] === ROD_ITEM) {
             // フラグ
-            val &= ~parseInt(dt[1]);
+            if (dt.length > 1) {
+                val &= ~parseInt(dt[1]);
+            }
             if (val > 0) {
                 this.itemMap[dt[0]] = val;
                 for (let i = 0; i < this.drawItemList.length; i++) {
@@ -1456,16 +1485,28 @@ export class StageData {
      * @returns 0: 壊す必要なし, 1:壊した,  255: 外壁でマトックが壊れる
      */
     public breakWall(bx: number, by: number, dir: number): number {
+        const proc = () => {
+            playEffect('Break').then();
+            this.addEvent({
+                type: 'Break',
+                value: {
+                    x: bx,
+                    y: by,
+                    dir: dir
+                }
+            });
+            return 1;
+        };
         switch (dir) {
             case 1: // 上
                 if (by === 0) {
                     return 255;
                 } else if (bx < FLOOR_WIDTH - 1 && this.wallData[by - 1][bx] === 4) {
                     this.wallData[by - 1][bx] = 0;
-                    return 1;
+                    return proc();
                 } else if (bx > 0 && this.wallData[by - 1][bx - 1] === 2) {
                     this.wallData[by - 1][bx - 1] = 0;
-                    return 1;
+                    return proc();
                 }
                 break;
             case 2: // 右
@@ -1473,10 +1514,10 @@ export class StageData {
                     return 255;
                 } else if (by < FLOOR_HEIGHT - 1 && this.wallData[by][bx] === 1) {
                     this.wallData[by][bx] = 0;
-                    return 1;
+                    return proc();
                 } else if (by > 0 && this.wallData[by - 1][bx] === 3) {
                     this.wallData[by - 1][bx] = 0;
-                    return 1;
+                    return proc();
                 }
                 break;
             case 3: // 下
@@ -1484,10 +1525,10 @@ export class StageData {
                     return 255;
                 } else if (bx < FLOOR_WIDTH - 1 && this.wallData[by][bx] === 4) {
                     this.wallData[by][bx] = 0;
-                    return 1;
+                    return proc();
                 } else if (bx > 0 && this.wallData[by][bx - 1] === 2) {
                     this.wallData[by][bx - 1] = 0;
-                    return 1;
+                    return proc();
                 }
                 break;
             case 4: // 左
@@ -1495,10 +1536,10 @@ export class StageData {
                     return 255;
                 } else if (by < FLOOR_HEIGHT - 1 && this.wallData[by][bx - 1] === 1) {
                     this.wallData[by][bx - 1] = 0;
-                    return 1;
+                    return proc();
                 } else if (by > 0 && this.wallData[by - 1][bx - 1] === 3) {
                     this.wallData[by - 1][bx - 1] = 0;
-                    return 1;
+                    return proc();
                 }
                 break;
         }
@@ -1536,6 +1577,7 @@ export class StageData {
         return this.flashData;
     }
     public initStage(gl: WebGL2RenderingContext, data: Stage): void {
+        setChime(0);
         this.timer = 20000;
         this.redTime = false;
         this.flashData = undefined;
@@ -1697,10 +1739,12 @@ export class StageData {
         this.playMode = mode;
         switch (mode) {
             case PlayMode.AllClear:
-                this.globalCounter = 360;
+                this.globalCounter = 258;
+                playBgm('FloorEnd', 1).then();
                 break;
             case PlayMode.ZapWait:
                 this.globalCounter = 200;
+                playBgm('Miss', 1).then();
                 break;
             case PlayMode.LostWait:
                 this.globalCounter = 200;
@@ -1708,13 +1752,18 @@ export class StageData {
                 for (let itm of overLostItem) {
                     this.playerData.lostItem(itm);
                 }
+                playBgm("Miss", 1).then();
                 break;
             case PlayMode.ClearWait:
-                this.globalCounter = 300;
+                this.globalCounter = 360;
                 for (let itm of clearLostItem) {
                     this.playerData.lostItem(itm);
                 }
                 this.floorInit.forEach(init => init.clear(this));
+                if (this.playMode === PlayMode.ClearWait) {
+                    // BGM
+                    playBgm('FloorClear', 1).then();
+                }
                 break;
             default:
                 this.globalCounter = 300;
@@ -1821,6 +1870,7 @@ export class StageData {
                         type: -1,
                         count: 100
                     };
+                    playEffect('EventNG').then();
                 } else if (res === EventResult.OK || res === EventResult.Hold) {
                     // 宝が出る
                     if (this.isLastFloor()) {
@@ -1832,6 +1882,7 @@ export class StageData {
                             type: 1,
                             count: 100
                         };
+                        playEffect('EventOK').then();
                     }
                     this.treasureEvent = undefined;
                 } else if (res === EventResult.Next) {
@@ -1839,6 +1890,7 @@ export class StageData {
                         type: 0,
                         count: 60
                     };
+                    playEffect('EventNEXT').then();
                 }
             }
             this.eventList = [];

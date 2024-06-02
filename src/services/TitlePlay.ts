@@ -7,6 +7,7 @@ import { } from "./FloorInit";
 import { FloorSelect } from "./FloorSelect";
 import { FloorStart, setSkyName } from "./FloorStart";
 import { preloadImages } from "./SpriteData";
+import { playBgm } from "./SoundData";
 
 const v_shader = `
 // xyz, a=色の明るさ
@@ -50,6 +51,8 @@ THE PRINCE GILGAMESH
 
 const gameTypeName = ["DATA", "ANOTHER", "SHADDOW", "DARK"];
 
+let lastGameType = 0;
+
 export class TitlePlay implements IPlay {
     private fontRender: FontRender;
     private message: string[];
@@ -62,7 +65,8 @@ export class TitlePlay implements IPlay {
     private select = 0;
     private saveData: SaveData[] = [];
     private mode: number[] = [];
-    private gameType: number = 0;
+    private gameType: number = lastGameType;
+    private startWait = 0;
 
     public constructor(gl: WebGL2RenderingContext) {
         this.fontRender = getFontRender(gl);
@@ -193,46 +197,66 @@ export class TitlePlay implements IPlay {
                 const fx = 0.1;
                 const fy = 0.35 * i - 0.9;
                 if (this.select === i) {
+                    if (this.startWait > 0 && (this.startWait & 8)) {
+                        continue;
+                    }
                     this.fontRender.drawFrame(gl, [fx, fy, 0.8, 0.3], [0.3, 0.2, 0], [0.7, 1, 1]);
                 }
                 let type = gameTypeName[this.gameType] + " " + (i + 1);
-                this.fontRender.draw(gl, type, [fx + 0.1, fy + 0.05, type.length * 0.05, 0.06], typeCol);
+                this.fontRender.draw(gl, type, [fx + 0.05, fy + 0.05, type.length * 0.05, 0.06], typeCol);
                 if (this.mode[i] & 1) {
-                    let stg = "< STAGE " + this.saveData[i].data.maxStage;
-                    this.fontRender.draw(gl, stg, [fx + 0.2, fy + 0.15, stg.length * 0.05, 0.06], [1, 1, 0.2]);
+                    let stg = "< STAGE " + this.saveData[i].data.curStage + "/" + this.saveData[i].data.maxStage;
+                    if (this.saveData[i].data.continueFlag) {
+                        stg += ".";
+                    }
+                    this.fontRender.draw(gl, stg, [fx + 0.1, fy + 0.15, stg.length * 0.05, 0.06], [1, 1, 0.2]);
+                    let contNum = (this.saveData[i].data.continueCount || 0).toString();
+                    this.fontRender.draw(gl, contNum, [fx + 0.6, fy + 0.23, contNum.length * 0.04, 0.04], [1, 1, 0.2]);
                 } else {
                     let stg = "START";
                     if (this.mode[i] & 2) {
                         stg += " >";
                     }
-                    this.fontRender.draw(gl, stg, [fx + 0.2, fy + 0.15, stg.length * 0.05, 0.06], [1, 0.4, 0.4]);
+                    this.fontRender.draw(gl, stg, [fx + 0.1, fy + 0.15, stg.length * 0.05, 0.06], [1, 0.4, 0.4]);
                 }
             }
-            if (stick.isUp(true) && this.select > 0) {
-                this.select--;
-            } else if (stick.isDown(true) && this.select < 4) {
-                this.select++;
-            } else if (stick.isLeft(true)) {
-                this.mode[this.select] &= ~1;
-            } else if (stick.isRight(true)) {
-                this.mode[this.select] |= (this.mode[this.select] >> 1);
-            } else if (stick.isSelect(true)) {
-                this.gameType = (this.gameType + 1) % 4;
-                this.loadData().then();
+            if (this.startWait === 0) {
+                if (stick.isUp(true) && this.select > 0) {
+                    this.select--;
+                } else if (stick.isDown(true) && this.select < 4) {
+                    this.select++;
+                } else if (stick.isLeft(true)) {
+                    this.mode[this.select] &= ~1;
+                } else if (stick.isRight(true)) {
+                    this.mode[this.select] |= (this.mode[this.select] >> 1);
+                } else if (stick.isSelect(true)) {
+                    this.gameType = (this.gameType + 1) % 4;
+                    this.loadData().then();
+                }
             }
         } else if (stick.isPause(true) || stick.isUp(true) || stick.isDown(true) || stick.isLeft(true) || stick.isRight(true) || stick.isSelect(true)) {
             this.count = 400;
         }
-        if (stick.isPause(true)) {
-            let playerData: PlayerData;
-            playerData = new PlayerData(gl, stick, this.gameType * 5 + this.select);
-            this.close(gl);
-            setSkyName(["sky", "sky2", "sky3", "sky4"][this.gameType]);
-            if (this.mode[this.select] & 1) {
-                return new FloorSelect(gl, playerData);
-            } else {
-                return new FloorStart(gl, playerData, 1, true);
+        if (this.startWait > 0) {
+            // 開始待ち
+            this.startWait--;
+            if (this.startWait === 0) {
+                let playerData: PlayerData;
+                const ix = this.gameType * 5 + this.select;
+                playerData = new PlayerData(gl, stick, ix);
+                this.close(gl);
+                setSkyName(["sky", "sky2", "sky3", "sky4"][this.gameType]);
+                if (this.mode[this.select] & 1) {
+                    return new FloorSelect(gl, playerData);
+                } else {
+                    return new FloorStart(gl, playerData, 1, true);
+                }
             }
+        }
+        if (stick.isPause(true)) {
+            playBgm('Coin', 1).then();
+            this.startWait = 180;
+            lastGameType = this.gameType;
         }
         return this;
     }

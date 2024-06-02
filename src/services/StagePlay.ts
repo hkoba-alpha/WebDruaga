@@ -1,8 +1,10 @@
 import { AllClearPlay } from "./AllClearPlay";
+import { Dragon, Saccubus } from "./Enemy";
 import { FloorStart } from "./FloorStart";
 import { FontRender, getFontRender } from "./FontRender";
 import { GameOverPlay } from "./GameOverPlay";
 import { IPlay, StickData } from "./PlayData";
+import { playBgm } from "./SoundData";
 import { PlayerSpriteData, SpriteData } from "./SpriteData";
 import { BLOCK_SIZE, DragonFire, KEY_ITEM, PlayMode, STAGE_DARK, STAGE_FILE_NAME, STAGE_HIDDEN_DOOR, STAGE_HIDDEN_KEY, StageData } from "./StageData";
 import { ZapPlay } from "./ZapPlay";
@@ -360,7 +362,7 @@ export class StageRender {
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
         // Texture
-        const imgList = ["floor", "wall", "gil", "block", "ground", "sky", "sky2", "sky3", "sky4"];
+        const imgList = ["floor", "wall", "block", "ground", "sky", "sky2", "sky3", "sky4"];
         for (let name of imgList) {
             this.getTexture(gl, name);
         }
@@ -807,18 +809,32 @@ export class StagePlay implements IPlay {
     public constructor(gl: WebGL2RenderingContext, private stageData: StageData) {
         this.fontRender = getFontRender(gl);
         this.stageRender = getStageRender(gl);
+        let bgm = { name: "FloorNormal", start: 1, end: 60 };
+        for (let ene of stageData.getEnemyList()) {
+            if (ene instanceof Dragon) {
+                bgm = { name: "FloorDragon", start: 1, end: 60 };
+            } else if (ene instanceof Saccubus) {
+                bgm = { name: "FloorIshtar", start: 1, end: 44 };
+            }
+        }
+        if (this.stageData.floorNum === 59) {
+            bgm = { name: "FloorDruaga", start: 1, end: 44 };
+        } else if (this.stageData.floorNum === 60) {
+            bgm = { name: "FloorIshtar", start: 1, end: 44 };
+        }
+        playBgm(bgm.name, bgm.start, bgm.end).then();
     }
     stepFrame(gl: WebGL2RenderingContext, stick: StickData): IPlay {
         gl.clearColor(0, 0, 0, 1);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.enable(gl.DEPTH_TEST);
-        if (stick.isPause(true)) {
-            this.pause = !this.pause;
-        }
         let playerData = this.stageData.playerData;
         if (!this.pause) {
             this.stageData?.stepFrame(gl);
+        }
+        if (stick.isPause(true)) {
+            this.pause = !this.pause;
         }
         //gl.disable(gl.CULL_FACE);
         this.stageRender.draw(gl, this.stageData!);

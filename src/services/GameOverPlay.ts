@@ -1,5 +1,6 @@
 import { FontRender, getFontRender } from "./FontRender";
 import { IPlay, StickData, saveData } from "./PlayData";
+import { playBgm } from "./SoundData";
 import { StageData } from "./StageData";
 import { TitlePlay } from "./TitlePlay";
 
@@ -7,11 +8,15 @@ export class GameOverPlay implements IPlay {
     private count: number = 240;
     private fontRender: FontRender;
 
-    public constructor(gl: WebGL2RenderingContext, stage: StageData) {
+    public constructor(gl: WebGL2RenderingContext, stage?: StageData) {
         this.fontRender = getFontRender(gl);
-        saveData.getSaveData(stage.playerData.saveNum).then(dt => {
-            stage.playerData.saveData(Math.max(dt.data.maxStage, stage.floorNum)).then();
-        });
+        if (stage) {
+            saveData.getSaveData(stage.playerData.saveNum).then(dt => {
+                const maxStage = Math.max(dt.data.maxStage, stage.floorNum);
+                stage.playerData.saveData(maxStage, maxStage, true).then();
+            });
+        }
+        playBgm('GameOver', 1).then();
     }
     stepFrame(gl: WebGL2RenderingContext, stick: StickData): IPlay {
         gl.clearColor(0, 0, 0, 1);

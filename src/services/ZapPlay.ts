@@ -1,14 +1,16 @@
 import { FloorStart } from "./FloorStart";
 import { FontRender, getFontRender } from "./FontRender";
 import { IPlay, StickData } from "./PlayData";
+import { playBgm } from "./SoundData";
 import { PlayerData } from "./StageData";
 
 export class ZapPlay implements IPlay {
-    private count: number = 180;
+    private count: number = 300;
     private fontRender: FontRender;
 
     public constructor(gl: WebGL2RenderingContext, private playerData: PlayerData) {
         this.fontRender = getFontRender(gl);
+        playBgm('Zap', 1).then();
     }
     stepFrame(gl: WebGL2RenderingContext, stick: StickData): IPlay {
         gl.clearColor(0, 0, 0, 1);

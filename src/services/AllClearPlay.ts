@@ -1,10 +1,11 @@
 import { StartRender, getStartRender } from "./FloorStart";
 import { FontRender, getFontRender } from "./FontRender";
+import { GameOverPlay } from "./GameOverPlay";
 import { IPlay, StickData } from "./PlayData";
+import { playBgm } from "./SoundData";
 import { SpriteData } from "./SpriteData";
 import { StageData } from "./StageData";
 import { StageRender, getStageRender } from "./StagePlay";
-import { TitlePlay } from "./TitlePlay";
 
 const clearMessge = [
     "CONGRATULATIONS !!",
@@ -148,16 +149,16 @@ export class AllClearPlay implements IPlay {
     private startRender: StartRender;
     private stageTex: WebGLTexture;
     private lookData = [
-        [0, 66.1, 59, 300],
-        [0, 63, 59, 120],
-        [4, 62, 59, 120],
-        [8, 58, 59, 400],
-        [10, 45, 55, 500],
-        [15, 30, 40, 500],
-        [15, 2, 30, 400],
-        [15, 2, 15, 400],
-        [20, 2, 0, 400],
-        [15, 1, 0, 500]
+        [0, 66.1, 59, 550],
+        [0, 63, 59, 200],
+        [4, 62, 59, 200],
+        [8, 58, 59, 500],
+        [10, 45, 55, 600],
+        [15, 30, 40, 600],
+        [15, 2, 30, 600],
+        [15, 2, 15, 600],
+        [20, 2, 0, 600],
+        [15, 1, 0, 800]
     ];
     private castIndex = 0;
     private castData: {
@@ -214,13 +215,13 @@ export class AllClearPlay implements IPlay {
                 }
             }
             if (this.mode >= 2) {
-                this.scrollY -= 0.005;
+                this.scrollY -= 0.004;
             }
         }
         if (this.mode >= 3) {
             let lasty = 0;
             for (let c of this.castData) {
-                c.y -= 0.005;
+                c.y -= 0.004;
                 lasty = c.y;
                 gl.viewport(0, 0, 512, 512);
                 let sprite: SpriteData;
@@ -279,19 +280,28 @@ export class AllClearPlay implements IPlay {
         this.count--;
         if (this.count <= 0) {
             this.mode++;
+            if (this.mode === 1) {
+                // 1:17=77*60=4620
+                playBgm('Ending', 1).then();
+            }
             this.count = 240;
             if (this.mode < this.lookData.length) {
                 this.count = this.lookData[this.mode][3];
             } else {
                 gl.deleteTexture(this.stageTex);
-                return new TitlePlay(gl);
+                return new GameOverPlay(gl);
             }
         } else if (this.mode === this.lookData.length - 1) {
             this.stageRender.drawChara(gl, this.stage.playerData.spriteData, 0.04, -0.05, 12);
             this.stageRender.drawChara(gl, this.stage.getSprite(gl, "Ishtar"), -0.06, -0.05, 2);
-            if (this.count < 300) {
+            if (this.count < 600) {
                 gl.viewport(0, 0, 512, 512);
-                this.fontRender.draw(gl, "THANK YOU FOR YOUR PLAYING.", [-0.8, 0.3, 1.6, 0.12], [1, 1, 0.8]);
+                let msg = "TOTAL CONTINUES: " + this.stage.playerData.getPlayCount();
+                if (this.stage.playerData.getPlayCount() === 0) {
+                    msg = "NO CONTINUE CLEAR!";
+                }
+                this.fontRender.draw(gl, msg, [-msg.length * 0.025, -0.4, msg.length * 0.05, 0.1], [1, 0.8, 0.8]);
+                this.fontRender.draw(gl, "THANK YOU FOR PLAYING.", [-0.7, 0.3, 1.4, 0.12], [1, 1, 0.8]);
             }
         }
         return this;
