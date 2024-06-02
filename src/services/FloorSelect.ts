@@ -9,6 +9,8 @@ export class FloorSelect implements IPlay {
     private stageNum = 0;
     private startRender: StartRender;
     private autoStart = false;
+    private lookHeight: number = 1;
+    private nearHeight: number = 2.5;
 
     public constructor(gl: WebGL2RenderingContext, private playerData: PlayerData) {
         this.fontRender = getFontRender(gl);
@@ -16,6 +18,8 @@ export class FloorSelect implements IPlay {
         this.playerData.loadData().then(dt => {
             this.maxStage = dt.maxStage;
             this.stageNum = dt.curStage;
+            this.lookHeight = this.stageNum;
+            this.nearHeight = 2 + this.stageNum / 2;
             if (!dt.continueFlag) {
                 this.autoStart = true;
             }
@@ -36,11 +40,17 @@ export class FloorSelect implements IPlay {
         gl.viewport(0, 0, 512, 512);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        this.startRender.draw(gl, 20, 2 + this.stageNum / 2, this.stageNum);
-
         if (this.maxStage < 1) {
             return this;
         }
+
+        let look = this.stageNum;
+        let near = 2 + this.stageNum / 2;
+        this.lookHeight += Math.sign(look - this.lookHeight) * Math.min(0.4, Math.abs(look - this.lookHeight));
+        this.nearHeight += Math.sign(near - this.nearHeight) * Math.min(0.2, Math.abs(near - this.nearHeight));
+
+        this.startRender.draw(gl, 20, this.nearHeight, this.lookHeight);
+
         if (stick.isPause(true) || this.autoStart) {
             return new FloorStart(gl, this.playerData, this.stageNum);
         }

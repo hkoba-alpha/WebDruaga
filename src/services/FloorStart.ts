@@ -401,7 +401,7 @@ export function getStartRender(gl: WebGL2RenderingContext): StartRender {
 const STEP_COUNT = 60;
 
 export class FloorStart implements IPlay {
-    static stageLoader: StageLoader;
+    static stageLoader?: StageLoader;
     static gameMode: number = 0;
 
     private count: number = 100;
@@ -468,6 +468,7 @@ export class FloorStart implements IPlay {
         let mode = Math.floor(this.playerData.saveNum / 5);
         if (mode !== FloorStart.gameMode || !FloorStart.stageLoader) {
             FloorStart.gameMode = mode;
+            FloorStart.stageLoader = undefined;
             const file = ["stage", "stage", "ura2", "ura3"];
             new StageLoader().loadStage(file[mode]).then(res => {
                 FloorStart.stageLoader = res;
@@ -500,7 +501,7 @@ export class FloorStart implements IPlay {
         playBgm('FloorStart', 1).then(() => { this.count = 30; });
     }
     private makeStage(gl: WebGL2RenderingContext): void {
-        this.stageData = FloorStart.stageLoader.getStage(gl, this.playerData, this.stageNum);
+        this.stageData = FloorStart.stageLoader!.getStage(gl, this.playerData, this.stageNum);
         this.floorTex = this.startRender.makeStageTexture(gl, this.stageRender, this.stageData);
     }
     stepFrame(gl: WebGL2RenderingContext, stick: StickData): IPlay {
@@ -521,6 +522,10 @@ export class FloorStart implements IPlay {
         let text = "FLOOR " + this.stageNum;
         this.fontRender.draw(gl, text, [-text.length / 20, -0.1, text.length * 0.1, 0.1], [1, 1, 1]);
         gl.flush();
+        // stageLoaderがまだ作成されていない時がある
+        if (!FloorStart.stageLoader) {
+            return this;
+        }
         this.count--;
         if (this.count === 0) {
             this.count = STEP_COUNT;

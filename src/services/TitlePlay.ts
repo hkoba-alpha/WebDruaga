@@ -1,6 +1,6 @@
 import { FontRender, getFontRender } from "./FontRender";
 import { IPlay, SaveData, StickData, saveData } from "./PlayData";
-import { PlayerData } from "./StageData";
+import { ARMOR_ITEM, BOOK_ITEM, BOOTS_ITEM, GUNTLET_ITEM, HELMET_ITEM, MEITH_ITEM, NECKLACE_ITEM, PEARL_ITEM, PlayerData, RING_ITEM, ROD_ITEM, SHIELD_ITEM, SWORD_ITEM } from "./StageData";
 import { } from "./Enemy";
 import { } from "./TreasureEvent";
 import { } from "./FloorInit";
@@ -8,6 +8,7 @@ import { FloorSelect } from "./FloorSelect";
 import { FloorStart, setSkyName } from "./FloorStart";
 import { preloadImages } from "./SpriteData";
 import { playBgm } from "./SoundData";
+import { getStageRender } from "./StagePlay";
 
 const v_shader = `
 // xyz, a=色の明るさ
@@ -53,6 +54,73 @@ const gameTypeName = ["DATA", "ANOTHER", "SHADDOW", "DARK"];
 
 let lastGameType = 0;
 
+class DebugTest {
+    private mode = 0;
+    private lastStick = 0;
+    private mode0Count = 0;
+
+    public checkStick(stick: StickData): void {
+        if (this.mode === 1) {
+            if (stick.isRight() && stick.isPause()) {
+                this.mode = 2;
+            }
+        } else if (this.mode === 0) {
+            let stk = 0;
+            (stick.isUp() && (stk |= 1));
+            (stick.isRight() && (stk |= 2));
+            (stick.isDown() && (stk |= 4));
+            (stick.isLeft() && (stk |= 8));
+            if (stk === this.lastStick) {
+                return;
+            }
+            const command = [
+                1, 0, 4, 0, 8, 0, 2, 0,
+                4, 0, 1, 0, 2, 0, 8, 0,
+                8, 0, 2, 0, 4, 0, 1, 0,
+                2, 0, 8, 0, 1, 0
+            ];
+            if (stk === command[this.mode0Count]) {
+                this.mode0Count++;
+                if (this.mode0Count >= command.length) {
+                    console.log("SECRET COMMAND OK!");
+                    this.mode = 1;
+                }
+            } else {
+                this.mode0Count = 0;
+            }
+            this.lastStick = stk;
+        }
+    }
+    public checkStart(saveNum: number): boolean {
+        if (this.mode === 1) {
+            // 特殊
+            saveData.getSaveData(saveNum).then(data => {
+                data.data.evilMap = {};
+                data.data.maxStage = 60;
+                data.data.continueFlag = true;
+                data.data.itemMap = Object.assign({}, data.data.itemMap, {
+                    [SWORD_ITEM]: 3,
+                    [ARMOR_ITEM]: 2,
+                    [SHIELD_ITEM]: 2,
+                    [GUNTLET_ITEM]: 2,
+                    [BOOTS_ITEM]: 1,
+                    [HELMET_ITEM]: 1,
+                    [NECKLACE_ITEM]: 3,
+                    [RING_ITEM]: 3,
+                    [ROD_ITEM]: 7,
+                    [BOOK_ITEM]: 4,
+                    [MEITH_ITEM]: 2,
+                    [PEARL_ITEM]: 1
+                });
+                saveData.updateSaveData(data).then();
+            });
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 export class TitlePlay implements IPlay {
     private fontRender: FontRender;
     private message: string[];
@@ -67,6 +135,7 @@ export class TitlePlay implements IPlay {
     private mode: number[] = [];
     private gameType: number = lastGameType;
     private startWait = 0;
+    private debugText?: DebugTest;
 
     public constructor(gl: WebGL2RenderingContext) {
         this.fontRender = getFontRender(gl);
@@ -106,6 +175,10 @@ export class TitlePlay implements IPlay {
         // 176x145
         img.src = `images/title.png`;
         this.loadData().then();
+        // preload
+        getStageRender(gl);
+        // TODO Debug
+        this.debugText = new DebugTest();
     }
     private async loadData(): Promise<void> {
         this.mode = [];
@@ -128,6 +201,9 @@ export class TitlePlay implements IPlay {
         gl.deleteProgram(this.program);
     }
     stepFrame(gl: WebGL2RenderingContext, stick: StickData): IPlay {
+        if (this.debugText) {
+            this.debugText.checkStick(stick);
+        }
         gl.clearColor(0, 0, 0, 1);
         gl.clearDepth(1.0);
         gl.viewport(0, 0, 512, 512);
@@ -205,7 +281,7 @@ export class TitlePlay implements IPlay {
                 let type = gameTypeName[this.gameType] + " " + (i + 1);
                 this.fontRender.draw(gl, type, [fx + 0.05, fy + 0.05, type.length * 0.05, 0.06], typeCol);
                 if (this.mode[i] & 1) {
-                    let stg = "< STAGE " + this.saveData[i].data.curStage + "/" + this.saveData[i].data.maxStage;
+                    let stg = "< FLOOR " + this.saveData[i].data.curStage + "/" + this.saveData[i].data.maxStage;
                     if (this.saveData[i].data.continueFlag) {
                         stg += ".";
                     }
@@ -257,6 +333,11 @@ export class TitlePlay implements IPlay {
             playBgm('Coin', 1).then();
             this.startWait = 180;
             lastGameType = this.gameType;
+            if (this.debugText) {
+                if (this.debugText.checkStart(this.gameType * 5 + this.select)) {
+                    this.mode[this.select] |= 1;
+                }
+            }
         }
         return this;
     }
