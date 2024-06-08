@@ -1,3 +1,4 @@
+import { DummyExit } from "./Enemy";
 import { ARMOR_ITEM, BOOK_ITEM, CANDLE_ITEM, FloorInit, FloorInitBase, GUNTLET_ITEM, POTION_ITEM, POTION_OF_CURE, POTION_OF_UNLOCK, PlayMode, SHIELD_ITEM, STAGE_DARK, STAGE_HIDDEN_DOOR, STAGE_HIDDEN_KEY, STAGE_KILL_DRUAGA, STAGE_LOCK, SWORD_ITEM, StageData } from "./StageData";
 
 @FloorInit("Candle")
@@ -11,9 +12,6 @@ class CandleInit extends FloorInitBase {
 class LockInit extends FloorInitBase {
     public init(gl: WebGL2RenderingContext, data: StageData): void {
         data.setStageFlag(STAGE_LOCK);
-    }
-    public clear(data: StageData): void {
-        data.playerData.lostItem(POTION_ITEM);
     }
 }
 
@@ -99,3 +97,18 @@ class LastInit extends FloorInitBase {
     }
 }
 
+@FloorInit("Choice")
+class ChoiceInit extends FloorInitBase {
+    public init(gl: WebGL2RenderingContext, data: StageData): void {
+        let dx = Math.floor(Math.random() * 8) + 5;
+        for (let x = 5; x < 13; x++) {
+            if (x === dx) {
+                data.setDoorPos(x, 0);
+            } else {
+                const ene = new DummyExit("DummyExit", data.getSprite(gl, "stage"));
+                ene.init(x, 0);
+                data.addEnemy(ene);
+            }
+        }
+    }
+}

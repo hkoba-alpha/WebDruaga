@@ -81,6 +81,7 @@ interface SpriteDraw {
     sprite: WebGLTexture;
     x: number;
     y: number;
+    type: number;
     rect: { sx: number; sy: number; ex: number; ey: number; };
     zadd?: number;// = -0.01
 }
@@ -92,6 +93,8 @@ export class StageRender {
     private posVbo: WebGLBuffer;
     private colorVbo: WebGLBuffer;
     private spriteVbo: WebGLBuffer;
+    private spriteVboS: WebGLBuffer;
+    private spriteVboL: WebGLBuffer;
     private spriteTexVbo: WebGLBuffer;
     private fireVbo: WebGLBuffer;
     private fireTexVbo: WebGLBuffer;
@@ -337,6 +340,24 @@ export class StageRender {
             0.9, 0.5, 1.2, -1,
             0.9, 0.5, 0, -1
         ]), gl.STATIC_DRAW);
+        this.spriteVboS = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteVboS);
+        //gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0.15, 0.6, 1.0, -1, 0.15, 0.6, 0, -1, 0.85, 0.6, 1.0, -1, 0.85, 0.6, 0, -1]), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            0.3, 0.4, 0.6, -1,
+            0.3, 0.4, 0, -1,
+            0.7, 0.4, 0.6, -1,
+            0.7, 0.4, 0, -1
+        ]), gl.STATIC_DRAW);
+        this.spriteVboL = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteVboL);
+        //gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0.15, 0.6, 1.0, -1, 0.15, 0.6, 0, -1, 0.85, 0.6, 1.0, -1, 0.85, 0.6, 0, -1]), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -0.3, 0.6, 2.2, -1,
+            -0.3, 0.6, 0, -1,
+            1.3, 0.6, 2.2, -1,
+            1.3, 0.6, 0, -1
+        ]), gl.STATIC_DRAW);
         this.spriteTexVbo = gl.createBuffer()!;
         this.fireVbo = gl.createBuffer()!;
         this.fireTexVbo = gl.createBuffer()!;
@@ -415,7 +436,8 @@ export class StageRender {
                 sprite: stgitem.texData,
                 x: pos.x,
                 y: pos.y - 0.3,
-                rect: stgitem.getTexRect(1)
+                rect: stgitem.getTexRect(1),
+                type: 0
             });
         } else {
             if (!stage.isStageFlag(STAGE_HIDDEN_DOOR)) {
@@ -424,7 +446,8 @@ export class StageRender {
                     sprite: stgitem.texData,
                     x: pos.x,
                     y: pos.y - 0.3,
-                    rect: stgitem.getTexRect(0)
+                    rect: stgitem.getTexRect(0),
+                    type: 0
                 });
             }
             if (!stage.isStageFlag(STAGE_HIDDEN_KEY) && stage.playerData.getItem(KEY_ITEM) < 0) {
@@ -435,7 +458,8 @@ export class StageRender {
                     x: keypos.x,
                     y: keypos.y - 0.1,
                     rect: stgitem.getTexRect(2),
-                    zadd: 0
+                    zadd: 0,
+                    type: 0
                 });
             }
         }
@@ -446,7 +470,8 @@ export class StageRender {
                 sprite: stgitem.texData,
                 x: pos.x,
                 y: pos.y,
-                rect: stgitem.getTexRect(3)
+                rect: stgitem.getTexRect(3),
+                type: 0
             });
         }
 
@@ -454,11 +479,15 @@ export class StageRender {
         for (let ene of stage.getEnemyList()) {
             const pos = ene.getSpritePosition();
             if (pos) {
+                if (pos.type === undefined) {
+                    pos.type = ene.sizeType;
+                }
                 sprlst.push({
                     sprite: ene.spriteData.texData,
                     x: pos.x,
                     y: pos.y,
-                    rect: ene.spriteData.getTexRect(pos.index)
+                    rect: ene.spriteData.getTexRect(pos.index),
+                    type: pos.type || 0
                 })
             }
         }
@@ -499,13 +528,15 @@ export class StageRender {
                     sprite: stage.playerData.spriteData.texData,
                     x: pos.x,
                     y: pos.y,
-                    rect: stage.playerData.spriteData.getTexRect(pos.foot)
+                    rect: stage.playerData.spriteData.getTexRect(pos.foot),
+                    type: 0
                 },
                 {
                     sprite: stage.playerData.spriteData.bodyTex,
                     x: pos.x,
                     y: pos.y,
-                    rect: stage.playerData.spriteData.getBodyTexRect(pos.body)
+                    rect: stage.playerData.spriteData.getBodyTexRect(pos.body),
+                    type: 0
                 }
             );
         }
@@ -599,7 +630,7 @@ export class StageRender {
             } else {
                 subz = 0.005;
             }
-            this.drawSprite(gl, spr.sprite, spr.x, spr.y, spr.rect, zadd)
+            this.drawSprite(gl, spr.sprite, spr.x, spr.y, spr.rect, zadd, spr.type);
             lastx = spr.x;
             lasty = spr.y;
         }
@@ -724,8 +755,18 @@ export class StageRender {
             this.drawSprite(gl, sprite.texData, xx, 1, sprite.getTexRect(ix));
         }
     }
-    private drawSprite(gl: WebGL2RenderingContext, sprite: WebGLTexture, x: number, y: number, rect: { sx: number; sy: number; ex: number; ey: number; }, zadd = -0.01): void {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteVbo);
+    private drawSprite(gl: WebGL2RenderingContext, sprite: WebGLTexture, x: number, y: number, rect: { sx: number; sy: number; ex: number; ey: number; }, zadd = -0.01, type = 0): void {
+        switch (type) {
+            case 1:
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteVboS);
+                break;
+            case 2:
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteVboL);
+                break;
+            default:
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteVbo);
+                break;
+        }
         gl.enableVertexAttribArray(this.aPos);
         gl.vertexAttribPointer(this.aPos, 4, gl.FLOAT, false, 0, 0);
 

@@ -68,7 +68,7 @@ SORCERER*5,BLUE_Knight*3
 44232341443413122
 22233444322223433
 
-[7] MATTOCK:2=And(NoItem(MATTOCK:1),Open(),RestTime(60))
+[7] MATTOCK:2=Order(Lost(MATTOCK:1),Open(),RestTime(60))
 MAGE_Ghost*2,BLUE_Knight*3,RED_Slime*3
 43331143131231144
 23441434444341123
@@ -101,7 +101,7 @@ GREEN_Slime,BLACK_Slime,RED_Slime,BLUE_Slime,DKGREEN_Slime,DKYELLOW_Slime
 00032320020343000
 00034032203023000
 
-[10] GUNTLET:1=And(EneCount(0,RED_Slime),Not(Spell(1)))
+[10:Candle] GUNTLET:1=And(Dead(RED_Slime*2),Not(Spell(1)))
 BLACK_Knight*2,RED_Slime*2,MAGE_Ghost
 23111434334442312
 34441343442222223
@@ -112,7 +112,7 @@ BLACK_Knight*2,RED_Slime*2,MAGE_Ghost
 44413434123341443
 13222223434444322
 
-[11:Candle] CANDLE:1=WalkKey(DLUID)
+[11] CANDLE:1=WalkKey(DLUID)
 BLUE_Slime*3,DLUID*5
 44222334234411123
 33343443343231434
@@ -134,7 +134,7 @@ MAGE_Ghost,DLUID*2,BLACK_Slime*2
 43344343443423342
 22233434134134412
 
-[13] SHIELD:1=Order(And(Not(KeyGet()),EneCount(0,SORCERER,BLUE_Slime)),KeyGet())
+[13] SHIELD:1=Order(And(Not(KeyGet()),Dead(SORCERER*2),Dead(BLUE_Slime*5)),KeyGet())
 SORCERER*2,BLUE_Slime*5
 41114131341223442
 34142231431434323
@@ -178,7 +178,7 @@ MIRROR_Knight,MAGE*5,BLACK_Slime*5
 34334434434434434
 43443343222342342
 
-[17] POTION:5=EneCount(0,BLUE_Slime,BLACK_Knight,QUOX_Dragon)
+[17] POTION:5=And(Dead(BLUE_Slime*2),Dead(BLACK_Knight*2),Dead(QUOX_Dragon))
 BLUE_Slime*2,BLACK_Knight*2,QUOX_Dragon
 22222220304444444
 22222220304444444
@@ -189,7 +189,7 @@ BLUE_Slime*2,BLACK_Knight*2,QUOX_Dragon
 22222220304444444
 22222220004444444
 
-[18:Lock] SWORD:2=And(HasItem(SWORD:1),Cont(50,Touch(Spell_Fire)))
+[18:Lock,ClearPotion] SWORD:2=And(HasItem(SWORD:1),Cont(50,Touch(Spell_Fire)))
 GREEN_Slime*8,RED_Slime*2,BLACK_Knight*2,SORCERER*3
 32222223341113141
 43231234423444431
@@ -211,7 +211,7 @@ RED_Slime*2,WIZARD*3,QUOX_Dragon
 33414134434343442
 34442223343414223
 
-[20:Dark] POTION:2=Order(And(KeyGet(),Not(Dead(BLUE_Knight),Dead(DLUID_Ghost),Dead(DLUID),Dead(RED_Slime))),EneCount(0,BLUE_Knight,DLUID_Ghost,RED_Slime),RestHP(60,SUPER_Knight2))
+[20:Dark,Druaga] POTION:2=Order(And(KeyGet(),Not(Dead(BLUE_Knight),Dead(DLUID_Ghost),Dead(DLUID),Dead(RED_Slime))),And(Dead(DLUID),Dead(BLUE_Knight),Dead(DLUID_Ghost),Dead(RED_Slime*3)),RestHP(19))
 SUPER_Knight2,BLUE_Knight,DLUID_Ghost,DLUID,RED_Slime*3
 31331311142222223
 41441441123442334
@@ -244,8 +244,8 @@ SILVER_Dragon,SORCERER*2,BLACK_Slime*5
 22342341443413122
 43423444322223433
 
-[23:Dark] BOOK:2=DummyItem(RestTime(7650))
-RED_Slime*2,MIRROR_Knight,WIZARD_Ghost,BLUE_Wisp4
+[23:Dark] BOOK:2=RestTime(7650)
+FAKE_Treasure*3,RED_Slime*2,MIRROR_Knight,WIZARD_Ghost,BLUE_Wisp4
 31313313313344234
 31303303334301234
 23234333440221000
@@ -266,7 +266,7 @@ GREEN_Slime,BLACK_Knight*2
 33444343413423432
 22033434234434342
 
-[25:Dark2]
+[25:Dark2] dummy:1=SameTime(WalkDoor(),Open())
 [26:Dark2] GUNTLET:2=And(HasItem(GUNTLET:1),Dead(Spell_Fire*5))
 GREEN_Roper,DLUID,SORCERER,MIRROR_Knight
 32312222331311142
@@ -300,7 +300,7 @@ BLUE_Knight,GREEN_Roper*2,DKGREEN_Slime*2,DLUID_Ghost
 43443433342314434
 14222344423412343
 
-[29:Exit] MATTOCK:3=Order(Or(Lost(MATTOCK:1),Lost(MATTOCK:2)),WalkPos(9,4,2),WalkPos(9,5,4),WalkPos(8,5,8),WalkPos(8,4,1),WalkPos(9,4,2),WalkPos(9,5,4),WalkPos(8,5,8),WalkPos(8,4,1),WalkPos(9,4,2),WalkPos(9,5,4),WalkPos(8,5,8),WalkPos(8,4,1))
+[29:Exit] MATTOCK:3=GilMove(PsUra29)
 BLACK_Slime*6,WIZARD_Ghost*2,SILVER_Dragon,BLUE_Wisp4
 22142214223442111
 13211212112223223
@@ -311,7 +311,7 @@ BLACK_Slime*6,WIZARD_Ghost*2,SILVER_Dragon,BLUE_Wisp4
 44212322223441222
 14411311113111121
 
-[30:Exit] POTION:5=SameTime(Dead(DLUID),WalkPos(*,*,*,1,0))
+[30:Exit] POTION:5=SameTime(Dead(DLUID),WalkPos(*,*,*,*,0))
 DLUID_Ghost,DLUID,MIRROR_Knight,BLUE_Wisp,BLUE_Wisp4
 33144222222334113
 44123334123442344
@@ -323,7 +323,7 @@ DLUID_Ghost,DLUID,MIRROR_Knight,BLUE_Wisp,BLUE_Wisp4
 44323432343234122
 
 #本当は違う
-[31:Exit,Lock] PEARL:1=SameTime(Stick(1),WalkPos(*,0,1,*,1))
+[31:Exit,Lock,ClearPotion] PEARL:1=SameTime(Stick(1),Open())
 WIZARD*4,BLUE_Slime*3,BLUE_Wisp
 12322231222233422
 13423344231344331
@@ -334,7 +334,7 @@ WIZARD*4,BLUE_Slime*3,BLUE_Wisp
 32222223222231432
 44423234111341222
 
-[32:Exit,LockEnd] BALANCE:2=Order(Dead(WIZARD),And(EneCount(0,WIZARD),Not(WalkPos(*,*,*,0))))
+[32:Exit,LockEnd] BALANCE:2=Order(Dead(WIZARD),And(Dead(WIZARD*2),Not(WalkPos(*,*,*,0))))
 GREEN_Slime*10,WIZARD*3
 32233131114222222
 43344144112322233
@@ -345,8 +345,8 @@ GREEN_Slime*10,WIZARD*3
 34334434434434434
 43443343222342342
 
-[33:Exit] SHIELD:2=And(HasItem(SHIELD:1),EneCount(0,Wall_1_5,Wall_4_1,Wall_10_4,Wall_15_7))
-Wall_1_5,Wall_4_1,Wall_10_4,Wall_15_7,BLACK_Dragon*4,BLACK_Slime*4,BLACK_Knight*2
+[33:Exit] SHIELD:2=And(HasItem(SHIELD:1),Break(4))
+Dark,BLACK_Dragon*4,BLACK_Slime*4,BLACK_Knight*2
 00020000000000000
 00000000000000000
 00000000000000000
@@ -367,7 +367,7 @@ WIZARD,HYPER_Knight*2,MIRROR_Knight*2,BLUE_Wisp,BLUE_Wisp4
 41134234443441344
 31342343234323412
 
-[35:Key] POTION:3=Dead(GREEN_Roper)
+[35:Key] POTION:3=Dead(GREEN_Roper*2)
 DLUID*2,GREEN_Roper*2,DKGREEN_Slime*2
 44134334422231222
 23442342312344223
@@ -378,7 +378,7 @@ DLUID*2,GREEN_Roper*2,DKGREEN_Slime*2
 43414422223343344
 22222231234414443
 
-[36:Key] BALANCE:4=SameTime(SamePos(Spell_Fire),WalkPos(*,*,*,3))
+[36:Key] BALANCE:4=SameTime(SamePos(Spell_Fire),WalkPos(*,*,*,7))
 SORCERER*4,LIZARD_Knight*3,SILVER_Dragon
 22322231222233422
 23423344231344331
@@ -389,7 +389,7 @@ SORCERER*4,LIZARD_Knight*3,SILVER_Dragon
 32222223222231432
 44423234111341222
 
-[37:Key] HELMET:1=Order(SamePos(GREEN_Roper),SamePos(RED_Roper),SamePos(BLUE_Roper))
+[37:Key] HELMET:1=And(SamePos(GREEN_Roper),SamePos(RED_Roper),SamePos(BLUE_Roper))
 GREEN_Roper*3,RED_Roper*3,BLUE_Roper*3,BLUE_Knight*2,RED_Wisp
 43141222312341111
 22222343443422223
@@ -423,7 +423,7 @@ RED_Roper,RED_Knight*2,WIZARD*2,RED_Slime*3,RED_Wisp4,RED_Fake
 44344442343443342
 
 #[40:Key] POTION:6=Order(RestTime(10000),SamePos(GREEN_Roper))
-[40:Key] dummy:1=Order(Open(),WalkPos(*,*,*,3))
+[40:Key,Druaga] POTION:6=Order(Open(),WalkPos(*,*,*,3),WalkPos(*,*,*,0))
 DLUID_Ghost,SORCERER*2,BLACK_Slime*3,SUPER_Dragon2
 22232223123411114
 34343434434222232
@@ -434,7 +434,7 @@ DLUID_Ghost,SORCERER*2,BLACK_Slime*3,SUPER_Dragon2
 43134434134422342
 34342343443313423
 
-[41:Key] POTION:7=EnemyMove(PsUra41)
+[41:Key] POTION:7=GilMove(PsUra41)
 RED_Roper,BLACK_Dragon,DKYELLOW_Slime*3,BLACK_Slime*2
 41333344422232342
 34444432314343433
@@ -445,7 +445,7 @@ RED_Roper,BLACK_Dragon,DKYELLOW_Slime*3,BLACK_Slime*2
 13343442222223442
 14434123423134233
 
-[42:Key] MEITH:1=Order(Dead(WIZARD_Ghost),WalkDoor(),SamePos(SILVER_Dragon),Open(),SamePos(RED_Wisp8),SamePos(RED_Wisp))
+[42:Key] MEITH:1=Order(And(Not(Touch(RED_Wisp)),WalkDoor(),Not(KeyGet())),And(Touch(RED_Wisp),Not(KeyGet())),KeyGet(),And(Not(Touch(RED_Wisp)),Open()),Touch(RED_Wisp))
 WIZARD_Ghost*2,SILVER_Dragon,RED_Wisp8*2,RED_Wisp,BLUE_Wisp4,BLUE_Wisp
 23341122223313112
 34422322334414413
@@ -456,7 +456,7 @@ WIZARD_Ghost*2,SILVER_Dragon,RED_Wisp8*2,RED_Wisp,BLUE_Wisp4,BLUE_Wisp
 42313423433443444
 23434434344334322
 
-[43:Key] POTION:3=RestTime(19000)
+[43:Key] POTION:3=RestTime(19900)
 WIZARD*3,HYPER_Knight*2,LIZARD_Knight*3
 44442222223341113
 33233341234423444
@@ -478,8 +478,8 @@ MAGE,DLUID,SORCERER,WIZARD,RED_Knight*2
 22232341232341233
 14343444343444344
 
-[45:Key,Cure] SWORD:3=Order(And(Not(Dead(HYPER_Knight),Dead(MIRROR_Knight),Dead(BLACK_Knight),Dead(LIZARD_Knight),Dead(RED_Knight)),Dead(BLUE_Knight)),And(Not(Dead(MIRROR_Knight),Dead(HYPER_Knight),Dead(LIZARD_Knight),Dead(RED_Knight)),Dead(BLACK_Knight)),And(Not(Dead(LIZARD_Knight),Dead(HYPER_Knight),Dead(RED_Knight)),Dead(MIRROR_Knight)),And(Not(Dead(LIZARD_Knight),Dead(RED_Knight)),Dead(HYPER_Knight)),And(Not(Dead(RED_Knight)),Dead(LIZARD_Knight)),Dead(RED_Knight))
-BLUE_Knight,BLACK_Knight,MIRROR_Knight,HYPER_Knight,LIZARD_Knight,RED_Knight,Excalibur
+[45:Key,Cure] SWORD:3=Order(And(Not(Dead(HYPER_Knight),Dead(MIRROR_Knight),Dead(BLACK_Knight),Dead(LIZARD_Knight),Dead(RED_Knight)),Dead(BLUE_Knight)),And(Not(Dead(MIRROR_Knight),Dead(HYPER_Knight),Dead(LIZARD_Knight),Dead(RED_Knight)),Dead(BLACK_Knight)),And(Not(Dead(LIZARD_Knight),Dead(HYPER_Knight),Dead(RED_Knight)),Dead(MIRROR_Knight)),And(Not(Dead(LIZARD_Knight),Dead(RED_Knight)),Dead(HYPER_Knight)),And(Not(Dead(RED_Knight)),Dead(LIZARD_Knight)),Dead(RED_Knight),EnemyEvent(Excalibur2),SameTime(Touch(Excalibur2),WalkPos(*,*,*,3)),SameTime(Touch(Excalibur2),WalkPos(*,*,*,0)))
+BLUE_Knight,BLACK_Knight,MIRROR_Knight,HYPER_Knight,LIZARD_Knight,RED_Knight,Excalibur2
 42314342314113313
 33443422223444414
 44423231134233222
@@ -489,7 +489,7 @@ BLUE_Knight,BLACK_Knight,MIRROR_Knight,HYPER_Knight,LIZARD_Knight,RED_Knight,Exc
 22222234113341134
 41332342233444341
 
-[46:Key] NECKLACE:3=Cont(80,SameTime(Touch(QUOX_Dragon),WalkPos(*,*,*,4)))
+[46:Key] NECKLACE:3=Cont(128,SameTime(Touch(QUOX_Dragon),WalkPos(*,*,*,4)))
 QUOX_Dragon,LIZARD_Knight*3
 10000111441434444
 10000111314144444
@@ -500,7 +500,7 @@ QUOX_Dragon,LIZARD_Knight*3
 31421343141431132
 22114434444432131
 
-[47:Key] POTION:5=And(Dead(BLUE_Roper),Not(Dead(QUOX_Dragon),Dead(HYPER_Knight),Dead(WIZARD_Ghost)))
+[47:Key] POTION:5=And(Dead(BLUE_Roper),Not(Dead(QUOX_Dragon)))
 QUOX_Dragon,BLUE_Roper,HYPER_Knight*2,WIZARD_Ghost,BLUE_Wisp,BLUE_Wisp8
 41422222232312231
 31234423343414344
@@ -522,7 +522,7 @@ GREEN_Slime,RED_Slime,BLUE_Slime,MAGE,SORCERER,WIZARD,BLUE_Knight,LIZARD_Knight,
 22322333414134323
 13413434442223434
 
-[49:Key,Lock] POTION:3=And(SameTime(Dead(GREEN_Slime),WalkPos(*,*,*,*,0)),SameTime(Dead(BLACK_Slime),WalkPos(*,*,*,*,0)),SameTime(Dead(RED_Slime),WalkPos(*,*,*,*,0)),SameTime(Dead(BLUE_Slime),WalkPos(*,*,*,*,0)),SameTime(Dead(DKGREEN_Slime),WalkPos(*,*,*,*,0)),SameTime(Dead(DKYELLOW_Slime),WalkPos(*,*,*,*,0)))
+[49:Key,Lock,ClearPotion] POTION:3=And(SameTime(Once(Dead(GREEN_Slime)),WalkPos(*,*,*,*,0)),SameTime(Once(Dead(BLACK_Slime)),WalkPos(*,*,*,*,0)),SameTime(Once(Dead(RED_Slime)),WalkPos(*,*,*,*,0)),SameTime(Once(Dead(BLUE_Slime)),WalkPos(*,*,*,*,0)),SameTime(Once(Dead(DKGREEN_Slime)),WalkPos(*,*,*,*,0)),SameTime(Once(Dead(DKYELLOW_Slime)),WalkPos(*,*,*,*,0)))
 GREEN_Slime,BLACK_Slime,RED_Slime,BLUE_Slime,DKGREEN_Slime,DKYELLOW_Slime
 11314122344443444
 44443143432334233
@@ -566,7 +566,7 @@ BLACK_Dragon,SILVER_Dragon,MAGE_Ghost,DLUID*3,DKGREEN_Slime
 23222231413434123
 34111341222223434
 
-[53:Key] POTION:5=Order(And(Spell(1,4,5,6,7),Not(Dead(EnergyDrain))),Dead(EnergyDrain),Spell(1,4,5,6,7))
+[53:Key] POTION:5=Or(Order(Spell(1,4,5,6,7,MAGE),Spell(1,4,5,6,7,MAGE)),Order(Spell(1,4,5,6,7,SORCERER),Spell(1,4,5,6,7,SORCERER)),Order(Spell(1,4,5,6,7,DLUID),Spell(1,4,5,6,7,DLUID)),Order(Spell(1,4,5,6,7,WIZARD),Spell(1,4,5,6,7,WIZARD)))
 MAGE*2,SORCERER*2,DLUID*2,WIZARD*2,EnergyDrain
 12313423441231342
 43414334234341433
@@ -599,7 +599,7 @@ BLUE_Roper*6,WIZARD,RED_Wisp,RED_Wisp4,RED_Wisp8,BLUE_Wisp,BLUE_Wisp4,BLUE_Wisp8
 43214334234343214
 23341322133313221
 
-[56:Key,Lock] RING:3=EnemyMove(PsUra56)
+[56:Key,Lock,ClearPotion] RING:3=GilMove(PsUra56)
 DLUID*5,DLUID_Ghost*3,BLUE_Slime*6,RED_Wisp,RED_Wisp8
 34131311142222223
 43441441123442334
@@ -610,8 +610,8 @@ DLUID*5,DLUID_Ghost*3,BLUE_Slime*6,RED_Wisp,RED_Wisp8
 14344344343431422
 13433432223344322
 
-[57:Key,LockEnd] MEITH:2=Order(And(Lost(MATTOCK:3),WalkDoor()),And(Not(Dead(Saccubus),KeyGet()),Dead(Saccubus)))
-LIZARD_Knight,HYPER_Knight,MIRROR_Knight,BLACK_Knight,DLUID,BLUE_Wisp,BLUE_Wisp8,RED_Wisp,RED_Wisp4*2,RED_Wisp8,Saccubus
+[57:Key,LockEnd] MEITH:2=Order(And(Lost(MATTOCK:3),Not(KeyGet()),Not(Dead(Saccubus2))),And(KeyGet(),Not(Dead(Saccubus2))),Dead(Saccubus2)))
+LIZARD_Knight,HYPER_Knight,MIRROR_Knight,BLACK_Knight,DLUID,BLUE_Wisp,BLUE_Wisp8,RED_Wisp,RED_Wisp4*2,RED_Wisp8,Saccubus2
 11434141223442331
 11223431434323444
 11334222223434432
@@ -633,7 +633,7 @@ QUOX_Dragon,RED_Knight,LIZARD_Knight*3
 11222332233302222
 
 # 本当はアキンドナイト４、ゴールドナイト２
-[59:Key]
+[59:Key,Druaga]
 WIZARD*2,WIZARD_Ghost,HYPER_Knight*4,MIRROR_Knight*2,SUPER_Knight
 23313323134331334
 43232313031343432
@@ -644,8 +644,8 @@ WIZARD*2,WIZARD_Ghost,HYPER_Knight*4,MIRROR_Knight*2,SUPER_Knight
 02333434314230342
 00220300301322022
 
-[60:Key,LastUra] dummy:2=And(HasItem(ROD:1),HasItem(ROD:2),HasItem(ROD:4),LastFloor(i:G:R:B:s,Touch(Ishtar),WalkPos(7,6,4,3),WalkPos(13,6,4,3),WalkPos(10,2,4,3),WalkPos(9,5,1,*,2),RestTime(20000)))
-Ishtar,Kai
+[60:Key,Last] dummy:2=And(HasItem(ROD:1),HasItem(ROD:2),HasItem(ROD:4),LastFloor(i:G:R:B:s:kK,Touch(Ishtar),WalkPos(7,6,4,3),WalkPos(13,6,4,3),WalkPos(10,2,4,3),Or(WalkPos(8,3),WalkPos(10,3),WalkPos(7,4),WalkPos(11,4),WalkPos(8,5),WalkPos(10,5)),WalkPos(9,5,1,*,2)))
+Ishtar,Kai2
 22222222222222220
 22222222222222220
 22222222222222220

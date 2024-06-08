@@ -13,7 +13,7 @@ export class GameOverPlay implements IPlay {
         if (stage) {
             saveData.getSaveData(stage.playerData.saveNum).then(dt => {
                 const maxStage = Math.max(dt.data.maxStage, stage.floorNum);
-                stage.playerData.saveData(maxStage, maxStage, true).then();
+                stage.playerData.saveData(stage.floorNum, maxStage, true).then();
             });
         }
         playBgm('GameOver', 1).then();

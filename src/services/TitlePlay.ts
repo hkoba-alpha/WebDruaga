@@ -328,8 +328,7 @@ export class TitlePlay implements IPlay {
                     return new FloorStart(gl, playerData, 1, true);
                 }
             }
-        }
-        if (stick.isPause(true)) {
+        } else if (stick.isPause(true)) {
             playBgm('Coin', 1).then();
             this.startWait = 180;
             lastGameType = this.gameType;

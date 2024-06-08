@@ -1,7 +1,7 @@
 import { StartRender, getStartRender } from "./FloorStart";
 import { FontRender, getFontRender } from "./FontRender";
 import { GameOverPlay } from "./GameOverPlay";
-import { IPlay, StickData } from "./PlayData";
+import { IPlay, StickData, saveData } from "./PlayData";
 import { playBgm } from "./SoundData";
 import { SpriteData } from "./SpriteData";
 import { StageData } from "./StageData";
@@ -149,7 +149,7 @@ export class AllClearPlay implements IPlay {
     private startRender: StartRender;
     private stageTex: WebGLTexture;
     private lookData = [
-        [0, 66.1, 59, 550],
+        [0, 66.1, 59, 300],
         [0, 63, 59, 200],
         [4, 62, 59, 200],
         [8, 58, 59, 500],
@@ -175,6 +175,11 @@ export class AllClearPlay implements IPlay {
         this.fontRender = getFontRender(gl);
         this.stageRender = getStageRender(gl);
         this.startRender = getStartRender(gl);
+        //this.stage.playerData.saveData(stage.floorNum, stage.floorNum, true).then();
+        saveData.getSaveData(this.stage.playerData.saveNum).then(dt => {
+            dt.data.continueFlag = true;
+            saveData.updateSaveData(dt).then();
+        });
         this.stageTex = this.startRender.makeStageTexture(gl, this.stageRender, this.stage, false);
         this.count = this.lookData[0][3];
         this.stage.playerData.init(gl, 0, 0);

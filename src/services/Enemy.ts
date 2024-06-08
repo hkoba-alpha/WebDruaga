@@ -1,6 +1,6 @@
 import { playDamage, playEffect } from "./SoundData";
 import { SpriteData } from "./SpriteData";
-import { ARMOR_ITEM, BALANCE_ITEM, BLOCK_SIZE, BOOTS_ITEM, CANDLE_ITEM, EnemyData, EnemyEntry, FLOOR_HEIGHT, FLOOR_WIDTH, GUNTLET_ITEM, HELMET_ITEM, HitRect, MEITH_ITEM, NECKLACE_ITEM, PEARL_ITEM, POTION_OF_CURE, POTION_OF_DRAGON_POT, PlayMode, PlayerData, RING_ITEM, ROD_ITEM, SHIELD_ITEM, STAGE_DEATH, STAGE_KILL_DRUAGA, SWORD_ITEM, SpritePosition, StageData, getMoveAdd, setTimerProc } from "./StageData";
+import { ARMOR_ITEM, BALANCE_ITEM, BLOCK_SIZE, BOOTS_ITEM, CANDLE_ITEM, DUMMY_ITEM, EnemyData, EnemyEntry, FLOOR_HEIGHT, FLOOR_WIDTH, GUNTLET_ITEM, HELMET_ITEM, HitRect, KEY_ITEM, MEITH_ITEM, NECKLACE_ITEM, PEARL_ITEM, POTION_OF_CURE, POTION_OF_DRAGON_POT, POTION_OF_ENEGY_DRAIN, PlayMode, PlayerData, RING_ITEM, ROD_ITEM, SHIELD_ITEM, STAGE_DARK, STAGE_DEATH, STAGE_KILL_DRUAGA, SWORD_ITEM, SpritePosition, StageData, getMoveAdd, setTimerProc } from "./StageData";
 
 export class Slime extends EnemyData {
     /**
@@ -70,10 +70,12 @@ export class Slime extends EnemyData {
         };
     }
 
+    @EnemyEntry("GREEN_SlimeS", { size: 1 })
+    @EnemyEntry("GREEN_SlimeL", { size: 2 })
     @EnemyEntry("GREEN_Slime")
     static green_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
         for (let i = 0; i < num; i++) {
-            const ene = new Slime(name, data.getSprite(gl, name), 60, 300);
+            const ene = new Slime(name, data.getSprite(gl, "GREEN_Slime"), 60, 300);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             data.addEnemy(ene);
@@ -149,6 +151,12 @@ class Knight extends EnemyData {
     protected dir: number;
     private hitPoint: number;
     private curePoint: number[];
+    protected spriteNum = 0;
+    /**
+     * 移動タイプ
+     * 0:プレイヤーに向かわない, 1:プレイヤーに向かって動き続ける, 2:プレイヤーに向かって壁で歩き続ける
+     */
+    protected moveType = 1;
 
     constructor(name: string, sprite: SpriteData, private speed: number, private moveDir: number, private param: number[], private defence = 0) {
         super(name, sprite);
@@ -160,6 +168,10 @@ class Knight extends EnemyData {
     public getHP(): number {
         return this.hitPoint;
     }
+    public stepFrame(gl: WebGL2RenderingContext, data: StageData): void {
+        this.spriteNum = Math.floor((data.getGlobalCount() * 6) / this.speed) & 1;
+        super.stepFrame(gl, data);
+    }
     protected canMove(data: StageData, dir: number, nextDir: number): boolean {
         return true;
     }
@@ -169,32 +181,51 @@ class Knight extends EnemyData {
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
         let nextDir = (this.dir + 3 + this.moveDir) % 4 + 1;
         const pos = data.playerData.getPosition();
-        if (this.curX === pos.x) {
-            nextDir = this.curY < pos.y ? 3 : 1;
-        } else if (this.curY === pos.y) {
-            nextDir = this.curX < pos.x ? 2 : 4;
-        }
-        for (let i = 0; i < 4; i++) {
-            const add = getMoveAdd(nextDir);
-            if (data.canMove(this.curX / BLOCK_SIZE, this.curY / BLOCK_SIZE, add.ax, add.ay)) {
-                break;
+        let fix = false;
+        if (this.moveType > 0) {
+            if (this.curX === pos.x) {
+                if (this.curY === pos.y) {
+                    // 重なっていた
+                    nextDir = (this.dir + 1) % 4 + 1;
+                } else {
+                    nextDir = this.curY < pos.y ? 3 : 1;
+                }
+                if (this.moveType === 2) {
+                    fix = true;
+                }
+            } else if (this.curY === pos.y) {
+                nextDir = this.curX < pos.x ? 2 : 4;
+                if (this.moveType === 2) {
+                    fix = true;
+                }
             }
-            nextDir = (nextDir + 3 - this.moveDir) % 4 + 1;
+        }
+        if (!fix) {
+            for (let i = 0; i < 4; i++) {
+                const add = getMoveAdd(nextDir);
+                if (data.canMove(this.curX / BLOCK_SIZE, this.curY / BLOCK_SIZE, add.ax, add.ay)) {
+                    break;
+                }
+                nextDir = (nextDir + 3 - this.moveDir) % 4 + 1;
+            }
         }
         if (!this.canMove(data, this.dir, nextDir)) {
             return;
         }
         this.dir = nextDir;
         const add = getMoveAdd(this.dir);
-        this.nextX = this.curX + add.ax * BLOCK_SIZE;
-        this.nextY = this.curY + add.ay * BLOCK_SIZE;
+        if (data.canMove(this.curX / BLOCK_SIZE, this.curY / BLOCK_SIZE, add.ax, add.ay)) {
+            this.nextX = this.curX + add.ax * BLOCK_SIZE;
+            this.nextY = this.curY + add.ay * BLOCK_SIZE;
+        }
         this.moveCount = this.speed;
     }
     public getSpritePosition(): SpritePosition | null {
         return {
             x: this.curX / BLOCK_SIZE,
             y: this.curY / BLOCK_SIZE,
-            index: (this.dir - 1) * 2 + (((this.curX + this.curY) & 4) >> 2)
+            //index: (this.dir - 1) * 2 + (((this.curX + this.curY) & 4) >> 2)
+            index: (this.dir - 1) * 2 + this.spriteNum
         }
     }
     public getAttackRect(): HitRect {
@@ -224,7 +255,7 @@ class Knight extends EnemyData {
         if (this.hitPoint <= 0) {
             this.onDead(data);
         } else {
-            playDamage();
+            playDamage().then();
         }
     }
     protected attacked(data: StageData): void {
@@ -234,7 +265,7 @@ class Knight extends EnemyData {
                 // 1 にする
                 data.playerData.addHP(-(data.playerData.getHP() - 1));
             } else {
-                data.playerData.addHP(-200);
+                data.playerData.addHP(-500);
             }
             return;
         }
@@ -272,6 +303,15 @@ class Knight extends EnemyData {
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             ene.moveCount = 16;
+            data.addEnemy(ene);
+        }
+    }
+    @EnemyEntry("BLUE_Knight3")
+    static blue_knight3(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        for (let i = 0; i < num; i++) {
+            const ene = new Knight(name, data.getSprite(gl, "BLUE_Knight"), 48, 1, knightParams.blue);
+            const pos = data.randomPos();
+            ene.init(pos.x, pos.y);
             data.addEnemy(ene);
         }
     }
@@ -339,34 +379,73 @@ class Knight extends EnemyData {
  */
 class SuperKnight extends Knight {
     private deadFlag = false;
-    constructor(name: string, sprite: SpriteData) {
+    private mode = 0;
+
+    constructor(name: string, sprite: SpriteData, private fake: boolean) {
         super(name, sprite, 24, 1, knightParams.hyper);
+        this.moveType = 2;
+        if (!this.fake) {
+            this.mode = 1;
+        }
     }
     protected onDead(data: StageData): void {
         super.onDead(data);
         this.deadFlag = true;
     }
     public stepFrame(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.mode === 0) {
+            if (data.getEnemyList().length === 1) {
+                this.mode = 1;
+                const pos = data.randomPos();
+                this.init(pos.x, pos.y);
+            }
+            return;
+        }
         super.stepFrame(gl, data);
         if (this.deadFlag) {
-            // ウィザードを出現
-            let wiz: SuperWizard[] = [];
-            for (let i = 0; i < 3; i++) {
-                const ene = new SuperWizard(gl, data.getSprite(gl, "WIZARD"), []);
+            if (this.fake) {
+                // 偽ドルアーガを出現
+                const ene = new Druaga(data.getSprite(gl, "DemonDruaga"), 1);
+                const pos = data.randomPos();
+                ene.init(pos.x, pos.y);
                 data.addEnemy(ene);
-                wiz.push(ene);
+            } else {
+                // ウィザードを出現
+                let wiz: SuperWizard[] = [];
+                for (let i = 0; i < 3; i++) {
+                    const ene = new SuperWizard(gl, data.getSprite(gl, "WIZARD"), []);
+                    data.addEnemy(ene);
+                    wiz.push(ene);
+                }
+                const ene = new SuperWizard(gl, data.getSprite(gl, "WIZARD"), wiz);
+                data.addEnemy(ene);
             }
-            const ene = new SuperWizard(gl, data.getSprite(gl, "WIZARD"), wiz);
-            data.addEnemy(ene);
         }
+    }
+    protected canMove(data: StageData, dir: number, nextDir: number): boolean {
+        return true;
+    }
+    public getSpritePosition(): SpritePosition | null {
+        if (this.mode === 0) {
+            return null;
+        }
+        return super.getSpritePosition();
     }
 
     @EnemyEntry("SUPER_Knight")
     static super_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        data.getSprite(gl, "DamonDruaga");
+        data.getSprite(gl, "DemonDruaga");
         data.getSprite(gl, "WIZARD");
         data.getSprite(gl, "QUOX_Dragon");
-        const ene = new SuperKnight(name, data.getSprite(gl, "HYPER_Knight"));
+        const ene = new SuperKnight(name, data.getSprite(gl, "HYPER_Knight"), false);
+        const pos = data.randomPos();
+        ene.init(pos.x, pos.y);
+        data.addEnemy(ene);
+    }
+    @EnemyEntry("SUPER_Knight2")
+    static super_knight2(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        data.getSprite(gl, "DemonDruaga");
+        const ene = new SuperKnight(name, data.getSprite(gl, "HYPER_Knight"), true);
         const pos = data.randomPos();
         ene.init(pos.x, pos.y);
         data.addEnemy(ene);
@@ -496,28 +575,31 @@ export class Dragon extends Knight {
         const pos = data.playerData.getPosition();
         let bx = this.curX / BLOCK_SIZE;
         let by = this.curY / BLOCK_SIZE;
-        if (pos.x === this.curX) {
+        let fire = Math.random() < 0.2;
+        if (this.name !== "SuperQuox" && pos.x === this.curX) {
             nextDir = pos.y < this.curY ? 1 : 3;
-        } else if (pos.y === this.curY) {
+        } else if (this.name !== "SuperQuox" && pos.y === this.curY) {
             nextDir = pos.x < this.curX ? 4 : 2;
         } else if (this.dir !== nextDir) {
             const add = getMoveAdd(this.dir);
             if (data.canMove(bx, by, add.ax, add.ay)) {
                 // 左右を向く
-                this.mode = 1;
-                this.count = 128;
-                return false;
+                if (!fire) {
+                    this.mode = 1;
+                    this.count = 128;
+                    return false;
+                }
             }
         }
         const add = getMoveAdd(nextDir);
         if (!data.canMove(bx, by, add.ax, add.ay)) {
             // 壁を壊す
-            data.breakWall(bx, by, nextDir);
+            data.breakWall(bx, by, nextDir, this.name);
             this.mode = 3;
             this.count = 16;
             this.dir = nextDir;
             return false;
-        } else if (this.dir === nextDir && Math.random() < 0.2) {
+        } else if (fire) {
             // 炎を吐く
             this.dir = nextDir;
             this.mode = 2;
@@ -631,13 +713,18 @@ export class Dragon extends Knight {
 }
 class SuperDragon extends Dragon {
     private deadFlag: boolean = false;
+    private hideMode = false;
 
-    public constructor(sprite: SpriteData) {
-        super("SuperQuox", sprite, 48, 1, knightParams.quox);
+    public constructor(sprite: SpriteData, private fake: boolean) {
+        super("SuperQuox", sprite, 96, 1, knightParams.quox);
+        this.hideMode = this.fake;
+        this.moveType = 0;
     }
     protected gotDamage(data: StageData): void {
         if (data.playerData.getItem(MEITH_ITEM) > 1) {
             this.onDead(data);
+        } else if (this.fake) {
+            return super.gotDamage(data);
         }
     }
     protected isStop(data: StageData): boolean {
@@ -648,19 +735,66 @@ class SuperDragon extends Dragon {
         this.deadFlag = true;
     }
     public stepFrame(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.hideMode) {
+            // 宝箱を取ったら、Quoxをいっぱい生成させる
+            if (data.playerData.hasItem(data.getTreasureItem())) {
+                // 宝箱を取った
+                for (let i = 0; i < 5; i++) {
+                    const ene = new Dragon("QUOX_Dragon", data.getSprite(gl, "QUOX_Dragon"), 96, 1, knightParams.quox);
+                    const pos = data.randomPos();
+                    ene.init(pos.x, pos.y);
+                    data.addEnemy(ene);
+                }
+                const pos = data.randomPos();
+                this.init(pos.x, pos.y);
+                this.hideMode = false;
+            }
+            return;
+        }
         super.stepFrame(gl, data);
         if (this.deadFlag) {
-            const ene = new Druaga(data.getSprite(gl, "DemonDruaga"));
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
+            const ene = new Druaga(data.getSprite(gl, "DemonDruaga"), this.fake ? 2 : 0);
+            if (this.fake) {
+                ene.init(this.curX / BLOCK_SIZE, this.curY / BLOCK_SIZE);
+            } else {
+                const pos = data.randomPos();
+                ene.init(pos.x, pos.y);
+            }
             data.addEnemy(ene);
         }
+    }
+    public getSpritePosition(): SpritePosition | null {
+        if (this.hideMode) {
+            return null;
+        }
+        return super.getSpritePosition();
+    }
+    protected checkAttack(player: PlayerData): boolean {
+        if (this.hideMode) {
+            return false;
+        }
+        return super.checkAttack(player);
+    }
+    protected checkDamage(player: PlayerData): boolean {
+        if (this.hideMode) {
+            return false;
+        }
+        return super.checkDamage(player);
+    }
+    @EnemyEntry("SUPER_Dragon2")
+    static super_dragon(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        const ene = new SuperDragon(data.getSprite(gl, "QUOX_DRAGON"), true);
+        const pos = data.randomPos();
+        ene.init(pos.x, pos.y);
+        data.addEnemy(ene);
     }
 }
 
 class SpellFire extends EnemyData {
     private count: number;
     private srcName: string;
+    private deadFlag = false;
+    private lastSword = 0;
 
     constructor(sprite: SpriteData, src: string) {
         super("Spell_Fire", sprite);
@@ -670,10 +804,17 @@ class SpellFire extends EnemyData {
     }
 
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
+        this.lastSword = data.playerData.getSwordIndex();
         this.count--;
         if (this.count <= 0) {
             data.removeEnemy(this);
             this.moveCount = -1;
+            if (this.deadFlag) {
+                data.addEvent({
+                    type: 'Dead',
+                    value: this.name
+                });
+            }
         }
     }
     public getSpritePosition(): SpritePosition | null {
@@ -702,10 +843,12 @@ class SpellFire extends EnemyData {
     }
     protected checkDamage(player: PlayerData): boolean {
         const atk = player.getAttackRect();
-        if (this.count > 16 && atk) {
+        if (this.count > 16 && this.lastSword === 3 && atk) {
             // 剣を振ると残り16
-            if (atk.isHit(this.curX + 7, this.curY + 7)) {
+            const rect = new HitRect(this.curX + 4, this.curY + 4, this.curX + 12, this.curY + 12);
+            if (atk.isIntersect(rect)) {
                 this.count = 16;
+                this.deadFlag = true;
             }
         }
         return false;
@@ -713,10 +856,10 @@ class SpellFire extends EnemyData {
 }
 
 export const spellNameType = [
-    "Spell1",   // Mage
-    "Spell2",   // Fire
-    "Spell3",   // Druid
-    "Spell4"    // Wizard
+    "MAGE_Spell",   // Mage
+    "SORCERER_Spell",   // Fire
+    "DLUID_Spell",   // Druid
+    "WIZARD_Spell"    // Wizard
 ];
 
 class Spell extends EnemyData {
@@ -776,7 +919,7 @@ class Spell extends EnemyData {
             this.moveCount = -1;
             if (this.spellType === 2) {
                 // ドルイド
-                if (data.breakWall(bx, by, this.dir) === 1) {
+                if (data.breakWall(bx, by, this.dir, this.name) === 1) {
                     // 扉が壊れた
                     data.addEvent({
                         type: "SpellBreak",
@@ -848,7 +991,7 @@ class Spell extends EnemyData {
         return shld.rect.isIntersect(atk);
     }
     protected checkAttack(player: PlayerData): boolean {
-        if (this.startX === this.curX && this.startY === this.curY) {
+        if (Math.abs(this.startX - this.curX) <= 16 && Math.abs(this.startY - this.curY) <= 16) {
             return false;
         }
         const pos = player.getPosition();
@@ -925,7 +1068,7 @@ class Magician extends EnemyData {
         return true;
     }
     protected onHide(): void {
-        this.restCount = 128 + Math.floor(Math.random() * 256);
+        this.restCount = 128 + Math.floor(Math.random() * 128);
     }
     protected onShow(data: StageData): void {
     }
@@ -1074,7 +1217,7 @@ class SuperWizard extends Magician {
         super.stepFrame(gl, data);
         if (this.deadFlag) {
             // Quax
-            const ene = new SuperDragon(data.getSprite(gl, "QUOX_Dragon"));
+            const ene = new SuperDragon(data.getSprite(gl, "QUOX_Dragon"), false);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             data.addEnemy(ene);
@@ -1225,6 +1368,11 @@ class Ghost extends EnemyData {
 export class Wisp extends EnemyData {
     private dir: number;
     private speed: number;
+    public turnCount = 0;
+    public lastTurn?: {
+        bx: number;
+        by: number;
+    };
 
     public constructor(name: string, sprite: SpriteData, private red: boolean) {
         super(name, sprite);
@@ -1243,6 +1391,29 @@ export class Wisp extends EnemyData {
                 break;
             }
             nextDir = (nextDir + 3 - (this.red ? 1 : -1)) % 4 + 1;
+        }
+        if ((nextDir + 4 - this.dir) % 4 === 1) {
+            // 右回り
+            // 1: (0, -1)
+            // 2: (0, 0)
+            // 3: (-1, 0)
+            // 4: (-1, -1)
+            this.lastTurn = {
+                bx: this.curX / BLOCK_SIZE - (nextDir >= 3 ? 1 : 0),
+                by: this.curY / BLOCK_SIZE - ((nextDir === 1 || nextDir === 4) ? 1 : 0)
+            };
+            this.turnCount++;
+        } else if ((nextDir + 4 - this.dir) % 4 === 3) {
+            // 左回り
+            // 1:(-1, -1)
+            // 2:(0, -1)
+            // 3:(0, 0)
+            // 4:(-1, 0)
+            this.lastTurn = {
+                bx: this.curX / BLOCK_SIZE - ((nextDir === 1 || nextDir === 4) ? 1 : 0),
+                by: this.curY / BLOCK_SIZE - (nextDir <= 2 ? 1 : 0)
+            };
+            this.turnCount++;
         }
         const add = getMoveAdd(nextDir);
         this.dir = nextDir;
@@ -1336,8 +1507,43 @@ export class Wisp extends EnemyData {
         }
     }
 }
+class FakeWisp extends Wisp {
+    private hitPoint = 34;
 
-class DummyExit extends EnemyData {
+    protected checkDamage(player: PlayerData): boolean {
+        const attack = player.getAttackRect();
+        if (attack) {
+            return attack.isHit(this.curX + 7, this.curY + 7);
+        }
+        return false;
+    }
+    protected gotDamage(data: StageData): void {
+        this.hitPoint--;
+        if (this.hitPoint <= 0) {
+            super.onDead(data);
+        } else {
+            playDamage().then();
+        }
+    }
+    protected attacked(data: StageData): void {
+        data.playerData.addHP(-1);
+    }
+
+    @EnemyEntry("RED_Fake")
+    public static redFake(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        for (let i = 0; i < num; i++) {
+            const ene = new FakeWisp(name, data.getSprite(gl, "Wisp"), true);
+            const pos = data.randomPos();
+            ene.init(pos.x, pos.y);
+            data.addEnemy(ene);
+        }
+    }
+}
+
+export class DummyExit extends EnemyData {
+    public constructor(name: string, spriteData: SpriteData) {
+        super(name, spriteData);
+    }
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
     }
     public getSpritePosition(): SpritePosition | null {
@@ -1370,25 +1576,30 @@ class DummyExit extends EnemyData {
     }
 }
 
-class Excalibur extends EnemyData {
+
+abstract class DummyTreasure extends EnemyData {
     private initFlag = false;
+
+    protected onInit(gl: WebGL2RenderingContext, data: StageData): void {
+
+    }
+    protected abstract onGet(gl: WebGL2RenderingContext, data: StageData): void;
 
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
         if (!this.initFlag) {
-            data.setTreasureItem(POTION_OF_CURE);
+            this.onInit(gl, data);
             this.initFlag = true;
         }
         const pos = data.playerData.getPosition();
         if (this.curX === pos.x && this.curY === pos.y) {
             // CUREを持っていなければダメ
-            if (data.playerData.hasItem(POTION_OF_CURE)) {
-                data.playerData.gotItem(SWORD_ITEM + ":3");
-                data.playerData.lostItem(POTION_OF_CURE);
-            } else {
-                data.setStageFlag(STAGE_DEATH);
-            }
+            this.onGet(gl, data);
             playEffect('ItemGet').then();
             data.removeEnemy(this);
+            data.addEvent({
+                type: 'Dead',
+                value: this.name
+            });
         }
     }
     public getSpritePosition(): SpritePosition | null {
@@ -1404,10 +1615,114 @@ class Excalibur extends EnemyData {
     protected checkDamage(player: PlayerData): boolean {
         return false;
     }
+}
+class Excalibur extends DummyTreasure {
+    protected onInit(gl: WebGL2RenderingContext, data: StageData): void {
+        data.setTreasureItem(POTION_OF_CURE);
+    }
+
+    protected onGet(gl: WebGL2RenderingContext, data: StageData): void {
+        if (data.playerData.hasItem(POTION_OF_CURE)) {
+            data.playerData.gotItem(SWORD_ITEM + ":3");
+            data.playerData.lostItem(POTION_OF_CURE);
+        } else {
+            data.setStageFlag(STAGE_DEATH);
+        }
+    }
+
     @EnemyEntry("Excalibur")
-    public static red(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+    public static excalibur(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
         for (let i = 0; i < num; i++) {
             const ene = new Excalibur(name, data.getSprite(gl, "stage"));
+            const pos = data.randomPos();
+            ene.init(pos.x, pos.y);
+            data.addEnemy(ene);
+        }
+    }
+}
+class Excalibur2 extends Excalibur {
+    private mode = 0;
+
+    public onEvent(data: StageData, options: string[]): void {
+        this.mode = 1;
+        const tpos = data.getTreasurePos();
+        while (true) {
+            const pos = data.randomPos();
+            if (tpos.x !== pos.x || tpos.y !== pos.y) {
+                this.init(pos.x, pos.y);
+                break;
+            }
+        }
+    }
+    public stepFrame(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.mode > 0) {
+            super.stepFrame(gl, data);
+        }
+    }
+    public getSpritePosition(): SpritePosition | null {
+        if (this.mode === 0) {
+            return null;
+        }
+        return super.getSpritePosition();
+    }
+
+    @EnemyEntry("Excalibur2")
+    public static excalibur(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        for (let i = 0; i < num; i++) {
+            const ene = new Excalibur2(name, data.getSprite(gl, "stage"));
+            const pos = data.randomPos();
+            ene.init(pos.x, pos.y);
+            data.addEnemy(ene);
+        }
+    }
+}
+class FakeTreasure extends DummyTreasure {
+    private view = false;
+
+    protected onGet(gl: WebGL2RenderingContext, data: StageData): void {
+        data.setTreasureItem(DUMMY_ITEM);
+    }
+
+    public stepFrame(gl: WebGL2RenderingContext, data: StageData): void {
+        if (!this.view) {
+            if (data.getTreasure() > 0) {
+                const pos = data.randomPos();
+                const tpos = data.getTreasurePos();
+                if (pos.x !== tpos.x || pos.y !== tpos.y) {
+                    this.init(pos.x, pos.y);
+                }
+                this.view = true;
+            }
+            return;
+        }
+        super.stepFrame(gl, data);
+    }
+    @EnemyEntry("FAKE_Treasure")
+    public static fake(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        for (let i = 0; i < num; i++) {
+            const ene = new FakeTreasure(name, data.getSprite(gl, "stage"));
+            const pos = data.randomPos();
+            ene.init(pos.x, pos.y);
+            data.addEnemy(ene);
+        }
+    }
+
+    public getSpritePosition(): SpritePosition | null {
+        if (this.view) {
+            return super.getSpritePosition();
+        }
+        return null;
+    }
+}
+class EnergyDrain extends DummyTreasure {
+    protected onGet(gl: WebGL2RenderingContext, data: StageData): void {
+        data.playerData.gotItem(POTION_OF_ENEGY_DRAIN);
+    }
+
+    @EnemyEntry("EnergyDrain")
+    public static fake(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        for (let i = 0; i < num; i++) {
+            const ene = new EnergyDrain(name, data.getSprite(gl, "stage"));
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             data.addEnemy(ene);
@@ -1423,6 +1738,9 @@ export class Saccubus extends EnemyData {
     constructor(name: string, sprite: SpriteData) {
         super(name, sprite);
         this.damagePoint = 0;
+        if (this.name === 'Saccubus2') {
+            this.index = 2;
+        }
     }
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
         if (this.damage) {
@@ -1435,6 +1753,10 @@ export class Saccubus extends EnemyData {
             if (pos.x === door.x * BLOCK_SIZE && pos.y === door.y * BLOCK_SIZE) {
                 this.index = 0;
             }
+        } else if (this.index === 2) {
+            if (data.playerData.hasItem(KEY_ITEM)) {
+                this.index = 0;
+            }
         }
     }
     public getSpritePosition(): SpritePosition | null {
@@ -1444,7 +1766,7 @@ export class Saccubus extends EnemyData {
         return {
             x: this.curX / BLOCK_SIZE,
             y: this.curY / BLOCK_SIZE,
-            index: this.index
+            index: Math.min(1, this.index)
         };
     }
     protected attacked(data: StageData): void {
@@ -1466,6 +1788,15 @@ export class Saccubus extends EnemyData {
             data.addEnemy(ene);
         }
     }
+    @EnemyEntry("Saccubus2")
+    public static saccubus2(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        for (let i = 0; i < num; i++) {
+            const ene = new Saccubus(name, data.getSprite(gl, "Ishtar"));
+            const pos = data.randomPos();
+            ene.init(pos.x, pos.y);
+            data.addEnemy(ene);
+        }
+    }
 }
 
 
@@ -1473,15 +1804,150 @@ export class Druaga extends EnemyData {
     private dir: number;
     private hitPoint = 96;
     private warpCount = 0;
+    /**
+     * 0: 消えている
+     * 1: 移動
+     */
+    private mode = 0;
+    /**
+     * 扉まで逃げる場合
+     */
+    private escapeDir: number[] = [];
 
-    public constructor(sprite: SpriteData) {
+    public constructor(sprite: SpriteData, private fake = 0) {
         super("Druaga", sprite);
         this.dir = Math.floor(Math.random() * 4) + 1;
         this.damagePoint = 1;
+        if (this.fake) {
+            this.damagePoint = 0;
+        } else {
+            this.mode = 1;
+        }
     }
 
     public getHP(): number {
         return this.hitPoint;
+    }
+    public stepFrame(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.mode === 0) {
+            if (this.fake === 1) {
+                if (data.isDoorOpen()) {
+                    this.mode = 1;
+                    const pos = data.randomPos();
+                    this.init(pos.x, pos.y);
+                    // 扉までの逃げ道を作成する
+                    let mv: number[][] = [];
+                    for (let y = 0; y < FLOOR_HEIGHT; y++) {
+                        mv.push([]);
+                        for (let x = 0; x < FLOOR_WIDTH; x++) {
+                            mv[y].push(0);
+                        }
+                    }
+                    mv[pos.y][pos.x] = 1;
+                    const dpos = data.getDoorPos();
+                    let num = 1;
+                    while (mv[dpos.y][dpos.x] === 0) {
+                        for (let y = 0; y < FLOOR_HEIGHT; y++) {
+                            for (let x = 0; x < FLOOR_WIDTH; x++) {
+                                if (mv[y][x] === num) {
+                                    // 移動先を探す
+                                    if (data.canMove(x, y, 0, -1)) {
+                                        if (mv[y - 1][x] === 0) {
+                                            mv[y - 1][x] = num + 1;
+                                        }
+                                    }
+                                    if (data.canMove(x, y, 0, 1)) {
+                                        if (mv[y + 1][x] === 0) {
+                                            mv[y + 1][x] = num + 1;
+                                        }
+                                    }
+                                    if (data.canMove(x, y, 1, 0)) {
+                                        if (mv[y][x + 1] === 0) {
+                                            mv[y][x + 1] = num + 1;
+                                        }
+                                    }
+                                    if (data.canMove(x, y, -1, 0)) {
+                                        if (mv[y][x - 1] === 0) {
+                                            mv[y][x - 1] = num + 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        num++;
+                    }
+                    // 経路が決まった
+                    let x = dpos.x;
+                    let y = dpos.y;
+                    while (x != pos.x || y != pos.y) {
+                        num = mv[y][x] - 1;
+                        for (let i = 1; i <= 4; i++) {
+                            const add = getMoveAdd(i);
+                            if (x - add.ax < 0 || x - add.ax >= FLOOR_WIDTH || y - add.ay < 0 || y - add.ay >= FLOOR_HEIGHT) {
+                                continue;
+                            }
+                            if (mv[y - add.ay][x - add.ax] === num && data.canMove(x, y, -add.ax, -add.ay)) {
+                                this.escapeDir.unshift(i);
+                                x -= add.ax;
+                                y -= add.ay;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // 出口まで一直線
+                const dpos = data.getDoorPos();
+                if (this.curX % BLOCK_SIZE) {
+                    // 左右に調整
+                    if (this.curX < dpos.x * BLOCK_SIZE) {
+                        this.curX++;
+                        this.dir = 2;
+                    } else {
+                        this.curX--;
+                        this.dir = 4;
+                    }
+                    this.nextX = this.curX;
+                } else if (this.curY % BLOCK_SIZE) {
+                    // 上下に調整
+                    if (this.curY < dpos.y * BLOCK_SIZE) {
+                        this.curY++;
+                        this.dir = 3;
+                    } else {
+                        this.curY--;
+                        this.dir = 1;
+                    }
+                    this.nextY = this.curY;
+                } else {
+                    // 移動ルートを作成する
+                    // 少しの間止まっている
+                    this.moveCount = BLOCK_SIZE * 2;
+                    this.mode = 1;
+                    let dx = dpos.x - this.curX / BLOCK_SIZE;
+                    let dy = dpos.y - this.curY / BLOCK_SIZE;
+                    while (dx) {
+                        if (dx < 0) {
+                            this.escapeDir.push(4);
+                            dx++;
+                        } else {
+                            this.escapeDir.push(2);
+                            dx--;
+                        }
+                    }
+                    while (dy) {
+                        if (dy < 0) {
+                            this.escapeDir.push(1);
+                            dy++;
+                        } else {
+                            this.escapeDir.push(3);
+                            dy--;
+                        }
+                    }
+                }
+            }
+            return;
+        }
+        super.stepFrame(gl, data);
     }
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
         if (this.warpCount > 0) {
@@ -1500,54 +1966,70 @@ export class Druaga extends EnemyData {
             }
             return;
         }
+        let nextDir: number = 0;
         let bx = this.curX / BLOCK_SIZE;
         let by = this.curY / BLOCK_SIZE;
-        let nextDir = (this.dir % 4) + 1;
-        const pos = data.playerData.getPosition();
-        if (this.curX === pos.x) {
-            // 縦に動く
-            if (pos.y < this.curY) {
-                nextDir = 1;
-            } else if (pos.y > this.curY) {
-                nextDir = 3;
+        if (this.fake) {
+            if (this.escapeDir.length > 0) {
+                nextDir = this.escapeDir.shift()!;
             } else {
-                // 重なっている
-                nextDir = (this.dir + 1) % 4 + 1;
-            }
-        } else if (this.curY === pos.y) {
-            if (pos.x < this.curX) {
-                nextDir = 4;
-            } else {
-                nextDir = 2;
-            }
-        }
-        for (let i = 0; i < 4; i++) {
-            const add = getMoveAdd(nextDir);
-            if (data.canMove(bx, by, add.ax, add.ay)) {
-                break;
-            } else if (this.curX === pos.x || this.curY === pos.y) {
-                // ワープする
-                this.dir = nextDir;
-                this.warpCount = 64;
+                this.curY -= 0.1;
+                if (this.curY < -2) {
+                    data.removeEnemy(this);
+                    data.setStageFlag(STAGE_KILL_DRUAGA);
+                }
                 return;
             }
-            nextDir = (nextDir + 2) % 4 + 1;
+        } else {
+            nextDir = (this.dir % 4) + 1;
+            const pos = data.playerData.getPosition();
+            if (this.curX === pos.x) {
+                // 縦に動く
+                if (pos.y < this.curY) {
+                    nextDir = 1;
+                } else if (pos.y > this.curY) {
+                    nextDir = 3;
+                } else {
+                    // 重なっている
+                    nextDir = (this.dir + 1) % 4 + 1;
+                }
+            } else if (this.curY === pos.y) {
+                if (pos.x < this.curX) {
+                    nextDir = 4;
+                } else {
+                    nextDir = 2;
+                }
+            } else {
+                for (let i = 0; i < 4; i++) {
+                    const add = getMoveAdd(nextDir);
+                    if (data.canMove(bx, by, add.ax, add.ay)) {
+                        break;
+                    }
+                    nextDir = (nextDir + 2) % 4 + 1;
+                }
+            }
         }
-        if (this.dir === nextDir) {
+        const add = getMoveAdd(nextDir);
+        if (!data.canMove(bx, by, add.ax, add.ay)) {
+            // ワープする
+            this.warpCount = 64;
+            this.dir = nextDir;
+            return;
+        } else if (this.dir === nextDir) {
             // 呪文チェック
             if (Math.random() < 0.3) {
                 // 呪文
                 new Spell(spellNameType[3], data.getSprite(gl, "Spell"), nextDir, this, data);
             }
         }
-        const add = getMoveAdd(nextDir);
         this.dir = nextDir;
         this.nextX = this.curX + add.ax * BLOCK_SIZE;
         this.nextY = this.curY + add.ay * BLOCK_SIZE;
         this.moveCount = 24;
     }
+
     public getSpritePosition(): SpritePosition | null {
-        if (this.warpCount & 2) {
+        if ((this.warpCount & 2) || this.mode === 0) {
             return null;
         }
         return {
@@ -1557,10 +2039,16 @@ export class Druaga extends EnemyData {
         };
     }
     protected checkDamage(player: PlayerData): boolean {
-        if (this.warpCount > 0) {
+        if (this.warpCount > 0 || this.fake) {
             return false;
         }
         return super.checkDamage(player);
+    }
+    protected checkAttack(player: PlayerData): boolean {
+        if (this.fake) {
+            return false;
+        }
+        return super.checkAttack(player);
     }
     protected gotDamage(data: StageData): void {
         // 最強装備じゃないと倒せない
@@ -1641,6 +2129,12 @@ export class IshtarKai extends EnemyData {
         ene.init(0, 4);
         data.addEnemy(ene);
     }
+    @EnemyEntry("Kai2")
+    public static kai2(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        const ene = new IshtarKai("Kai", data.getSprite(gl, 'Ishtar'), 1);
+        ene.init(9, 4);
+        data.addEnemy(ene);
+    }
 }
 
 export class ItemEnemy extends EnemyData {
@@ -1681,3 +2175,33 @@ setTimerProc((gl, data) => {
             break;
     }
 });
+
+/**
+ * フロアを暗くする
+ */
+class DarkFloor extends EnemyData {
+    protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
+        let flag = false;
+        if (data.getFireList().length > 0) {
+            data.clearStageFlag(STAGE_DARK);
+        } else {
+            data.setStageFlag(STAGE_DARK);
+        }
+    }
+    public getSpritePosition(): SpritePosition | null {
+        return null;
+    }
+    protected checkAttack(player: PlayerData): boolean {
+        return false;
+    }
+    protected checkDamage(player: PlayerData): boolean {
+        return false;
+    }
+
+    @EnemyEntry("Dark")
+    public static dark(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        const ene = new DarkFloor("Dark", data.getSprite(gl, 'Ishtar'));
+        ene.init(0, 0);
+        data.addEnemy(ene);
+    }
+}

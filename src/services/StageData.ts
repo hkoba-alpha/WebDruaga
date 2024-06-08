@@ -208,14 +208,26 @@ const enemyCreateMap: { [name: string]: any; } = {
  * @param name 名前
  * @returns 
  */
-export function EnemyEntry(name: string) {
+export function EnemyEntry(name: string, option?: { size?: number;[key: string]: any; }) {
     // 実際のデコレーター関数
     return function (target: any, key: string, descriptor: PropertyDescriptor) {
         const originalMethod = descriptor.value;
-        enemyCreateMap[name] = originalMethod;
+        if (option) {
+            enemyCreateMap[name] = function (gl: WebGL2RenderingContext, data: StageData, name: string, num: number) {
+                if (option.size) {
+                    EnemyData.setDefaultSize(option.size);
+                }
+                originalMethod(gl, data, name, num, option);
+                EnemyData.setDefaultSize(0);
+            };
+        } else {
+            enemyCreateMap[name] = originalMethod;
+        }
+        /*
         descriptor.value = function (gl: WebGL2RenderingContext, data: StageData, name: string, num: number) {
             originalMethod(gl, data, name, num);
         };
+        */
         return descriptor;
     };
 }
@@ -382,9 +394,11 @@ export interface SpritePosition {
     x: number;
     y: number;
     index: number;
+    type?: number;  // 0:普通, 1:Small, 2:Big
 }
 
 export abstract class EnemyData {
+    public removed: boolean = false;
     protected curX: number;
     protected curY: number;
     protected nextX: number;
@@ -392,8 +406,22 @@ export abstract class EnemyData {
     protected moveCount: number;
     protected damagePoint: number = 200;
     private moveDiv: number = 0;
+    /**
+     * サイズ
+     * 0: 普通
+     * 1: Small
+     * 2: Big
+     */
+    public sizeType: number = 0;
+
+    private static defaultSize = 0;
+
+    public static setDefaultSize(type: number): void {
+        this.defaultSize = type;
+    }
 
     protected constructor(public readonly name: string, public readonly spriteData: SpriteData) {
+        this.sizeType = EnemyData.defaultSize;
         this.curX = 0;
         this.curY = 0;
         this.nextX = this.curX;
@@ -409,6 +437,13 @@ export abstract class EnemyData {
         this.nextX = this.curX;
         this.nextY = this.curY;
         this.moveCount = 0;
+    }
+    /**
+     * 宝箱イベントから呼ばれる
+     * @param data
+     * @param options 
+     */
+    public onEvent(data: StageData, options: string[]): void {
     }
 
     public getPosition(): { x: number; y: number; } {
@@ -447,6 +482,13 @@ export abstract class EnemyData {
     }
 
     public stepFrame(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.moveCount === 0) {
+            this.moveDiv = 0;
+            this.nextMove(gl, data);
+        }
+        if (this.removed) {
+            return;
+        }
         if (this.moveCount > 0) {
             //const dx = (this.nextX < this.curX) ? -Math.round((this.curX - this.nextX) / this.moveCount) : Math.round((this.nextX - this.curX) / this.moveCount);
             //const dy = (this.nextY < this.curY) ? -Math.round((this.curY - this.nextY) / this.moveCount) : Math.round((this.nextY - this.curY) / this.moveCount);
@@ -484,19 +526,18 @@ export abstract class EnemyData {
             this.curY += dy;
             this.moveCount--;
         }
+        if (this.checkDamage(data.playerData)) {
+            // ダメージを受けた
+            this.gotDamage(data);
+        }
+        if (this.removed) {
+            return;
+        }
         if (this.checkAttack(data.playerData)) {
             this.attacked(data);
             if (data.playerData.getHP() === 0) {
                 return;
             }
-        }
-        if (this.checkDamage(data.playerData)) {
-            // ダメージを受けた
-            this.gotDamage(data);
-        }
-        if (this.moveCount === 0) {
-            this.moveDiv = 0;
-            this.nextMove(gl, data);
         }
     }
     protected abstract nextMove(gl: WebGL2RenderingContext, data: StageData): void;
@@ -636,7 +677,7 @@ export class PlayerData {
         this.evilMap = dt.data.evilMap;
         this.playCount = (dt.data.continueCount || 0);
         this.resetPlayer = dt.data.restPlayer;
-        if (dt.data.continueFlag) {
+        if (dt.data.continueFlag && dt.data.restPlayer < 0) {
             // コンティニュー可能
             this.resetPlayer = 2;
             this.playCount++;
@@ -952,7 +993,7 @@ export class PlayerData {
                 if (this.x % BLOCK_SIZE === 0 && this.y % BLOCK_SIZE === 0 && !this.walkFlag) {
                     // マトック
                     if (this.restMattock > 0) {
-                        const blk = data.breakWall(this.x / BLOCK_SIZE, this.y / BLOCK_SIZE, this.dir);
+                        const blk = data.breakWall(this.x / BLOCK_SIZE, this.y / BLOCK_SIZE, this.dir, 'Gil');
                         if (blk === 1) {
                             // 壁を壊した
                             /*
@@ -1052,6 +1093,10 @@ export class PlayerData {
         const div = SWORD_MIDDLE / 4;
         return Math.floor((this.swordCount - 1) / div) + 1;
     }
+    /**
+     * 剣を押しているモード
+     * @returns 0:しまっている,1:出している,2:しまい始めている
+     */
     public getSwordMode(): number {
         return this.swordMode;
     }
@@ -1189,9 +1234,7 @@ export class PlayerData {
             this.drawItemList[1] = ix;
         }
         if (name === POTION_OF_ENEGY_DRAIN) {
-            if (this.hitPoint > 16) {
-                this.hitPoint = 16;
-            }
+            this.hitPoint = 16;
         } else if (name === POTION_OF_POWER) {
             this.hitPoint += 48;
         }
@@ -1482,9 +1525,10 @@ export class StageData {
      * @param bx 
      * @param by 
      * @param dir 
+     * @param src
      * @returns 0: 壊す必要なし, 1:壊した,  255: 外壁でマトックが壊れる
      */
-    public breakWall(bx: number, by: number, dir: number): number {
+    public breakWall(bx: number, by: number, dir: number, src: string): number {
         const proc = () => {
             playEffect('Break').then();
             this.addEvent({
@@ -1492,7 +1536,8 @@ export class StageData {
                 value: {
                     x: bx,
                     y: by,
-                    dir: dir
+                    dir: dir,
+                    src: src
                 }
             });
             return 1;
@@ -1555,6 +1600,10 @@ export class StageData {
     public setTreasure(num: number): void {
         this.treasureFlag = num;
     }
+    /**
+     * 宝が出ているか
+     * @returns 0:出ていない,1:取れる,2:ロック
+     */
     public getTreasure(): number {
         return this.treasureFlag;
     }
@@ -1675,6 +1724,10 @@ export class StageData {
     public getDoorPos(): { x: number; y: number; } {
         return this.doorPos;
     }
+    public setDoorPos(x: number, y: number): void {
+        this.doorPos.x = x;
+        this.doorPos.y = y;
+    }
     public getTreasurePos(): { x: number; y: number; } {
         return this.playerPos;
     }
@@ -1728,6 +1781,7 @@ export class StageData {
         for (let i = 0; i < this.enemyList.length; i++) {
             if (this.enemyList[i] === enemy) {
                 this.enemyList.splice(i, 1);
+                enemy.removed = true;
                 break;
             }
         }
@@ -1876,6 +1930,7 @@ export class StageData {
                     if (this.isLastFloor()) {
                         // Clear
                         this.setPlayMode(PlayMode.AllClear);
+                        return;
                     } else {
                         this.treasureFlag = 1;
                         this.flashData = {
