@@ -1,7 +1,7 @@
 import { FloorStart, StartRender, getStartRender } from "./FloorStart";
 import { FontRender, getFontRender } from "./FontRender";
 import { IPlay, StickData } from "./PlayData";
-import { PlayerData } from "./StageData";
+import { PlayerData, StageLoader } from "./StageData";
 
 export class FloorSelect implements IPlay {
     private fontRender: FontRender;
@@ -11,8 +11,9 @@ export class FloorSelect implements IPlay {
     private autoStart = false;
     private lookHeight: number = 1;
     private nearHeight: number = 2.5;
+    private stageLoader?: StageLoader;
 
-    public constructor(gl: WebGL2RenderingContext, private playerData: PlayerData) {
+    public constructor(gl: WebGL2RenderingContext, private playerData: PlayerData, debug = false) {
         this.fontRender = getFontRender(gl);
         this.startRender = getStartRender(gl);
         this.playerData.loadData().then(dt => {
@@ -23,16 +24,10 @@ export class FloorSelect implements IPlay {
             if (!dt.continueFlag) {
                 this.autoStart = true;
             }
-            // TODO
-            //this.autoStart = false;
-            /*
-            this.maxStage = 60;
-            this.playerData.gotItem('ROD:1');
-            this.playerData.gotItem('ROD:2');
-            this.playerData.gotItem('ROD:4');
-            this.playerData.gotItem('BOOTS:1');
-            */
         });
+        if (debug) {
+            FloorStart.getStageLoader(Math.floor(this.playerData.saveNum / 5)).then(res => this.stageLoader = res);
+        }
     }
     stepFrame(gl: WebGL2RenderingContext, stick: StickData): IPlay {
         gl.clearColor(0, 0, 0, 1);
@@ -69,6 +64,20 @@ export class FloorSelect implements IPlay {
             this.stageNum = 1;
         } else if (this.stageNum > this.maxStage) {
             this.stageNum = this.maxStage;
+        }
+        if (this.stageLoader) {
+            // アイテムの取得など
+            if (stick.isSword(true)) {
+                const dt = this.stageLoader.getData(this.stageNum);
+                if (dt.treasure) {
+                    this.playerData.gotItem(dt.treasure);
+                }
+            } else if (stick.isSelect(true)) {
+                const dt = this.stageLoader.getData(this.stageNum);
+                if (dt.treasure) {
+                    this.playerData.lostItem(dt.treasure);
+                }
+            }
         }
         gl.enable(gl.DEPTH_TEST);
         this.fontRender.draw(gl, "SELECT FLOOR", [-0.7, -0.3, 1.2, 0.1], [0.8, 0.8, 1]);

@@ -417,6 +417,19 @@ export class FloorStart implements IPlay {
 
     private floorTex?: WebGLTexture;
 
+    public static async getStageLoader(mode: number): Promise<StageLoader> {
+        if (mode !== FloorStart.gameMode || !FloorStart.stageLoader) {
+            FloorStart.gameMode = mode;
+            FloorStart.stageLoader = undefined;
+            const file = ["stage", "stage", "ura2", "ura3"];
+            FloorStart.stageLoader = await (new StageLoader()).loadStage(file[mode]);
+            if (mode === 1) {
+                FloorStart.stageLoader = await FloorStart.stageLoader.loadStage("ura1");
+            }
+        }
+        return FloorStart.stageLoader!;
+    }
+
     /**
      * 
      */
@@ -466,17 +479,7 @@ export class FloorStart implements IPlay {
         this.startRender = getStartRender(gl);
         this.stageRender = getStageRender(gl);
         let mode = Math.floor(this.playerData.saveNum / 5);
-        if (mode !== FloorStart.gameMode || !FloorStart.stageLoader) {
-            FloorStart.gameMode = mode;
-            FloorStart.stageLoader = undefined;
-            const file = ["stage", "stage", "ura2", "ura3"];
-            new StageLoader().loadStage(file[mode]).then(res => {
-                FloorStart.stageLoader = res;
-                if (mode === 1) {
-                    res.loadStage("ura1").then();
-                }
-            });
-        }
+        FloorStart.getStageLoader(mode).then();
         this.fontRender = getFontRender(gl);
         if (save) {
             this.playerData.saveData(stageNum, stageNum, false).then();

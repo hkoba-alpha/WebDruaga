@@ -105,6 +105,9 @@ class WalkDoorEvent extends EventBase {
             }
             return EventResult.None;
         }
+        if (data.playerData.hasItem(KEY_ITEM)) {
+            return EventResult.NG;
+        }
         let plpos = data.playerData.getPosition();
         if (plpos.x === dx && plpos.y === dy) {
             return EventResult.Hold;

@@ -50,7 +50,7 @@ THE PRINCE GILGAMESH
       TO HELP KI IN
         THE TOWER OF DRUAGA`;
 
-const gameTypeName = ["NORMAL", "ANOTHER", "SHADDOW", "DARK"];
+const gameTypeName = ["NORMAL", "ANOTHER", "SHADOW", "DARKNESS"];
 
 let gameType: number[] = [0, 0, 0, 0, 0];
 
@@ -98,26 +98,31 @@ class DebugTest {
                 data.data.evilMap = {};
                 data.data.maxStage = 60;
                 data.data.continueFlag = true;
-                data.data.itemMap = Object.assign({}, data.data.itemMap, {
-                    [SWORD_ITEM]: 3,
-                    [ARMOR_ITEM]: 2,
-                    [SHIELD_ITEM]: 2,
-                    [GUNTLET_ITEM]: 2,
-                    [BOOTS_ITEM]: 1,
-                    [HELMET_ITEM]: 1,
-                    [NECKLACE_ITEM]: 3,
-                    [RING_ITEM]: 3,
-                    [ROD_ITEM]: 7,
-                    [BOOK_ITEM]: 4,
-                    [MEITH_ITEM]: 2,
-                    [PEARL_ITEM]: 1
-                });
+                /*
+                    data.data.itemMap = Object.assign({}, data.data.itemMap, {
+                        [SWORD_ITEM]: 3,
+                        [ARMOR_ITEM]: 2,
+                        [SHIELD_ITEM]: 2,
+                        [GUNTLET_ITEM]: 2,
+                        [BOOTS_ITEM]: 1,
+                        [HELMET_ITEM]: 1,
+                        [NECKLACE_ITEM]: 3,
+                        [RING_ITEM]: 3,
+                        [ROD_ITEM]: 7,
+                        [BOOK_ITEM]: 4,
+                        [MEITH_ITEM]: 2,
+                        [PEARL_ITEM]: 1
+                    });
+                */
                 saveData.updateSaveData(data).then();
             });
             return true;
         } else {
             return false;
         }
+    }
+    public isDebugMode(): boolean {
+        return this.mode === 1;
     }
 }
 
@@ -134,7 +139,7 @@ export class TitlePlay implements IPlay {
     private saveData: SaveData[] = [];
     private mode: number[] = [];
     private startWait = 0;
-    private debugText?: DebugTest;
+    private debugTest?: DebugTest;
 
     public constructor(gl: WebGL2RenderingContext) {
         this.fontRender = getFontRender(gl);
@@ -177,7 +182,7 @@ export class TitlePlay implements IPlay {
         // preload
         getStageRender(gl);
         // TODO Debug
-        this.debugText = new DebugTest();
+        this.debugTest = new DebugTest();
     }
     private async loadData(): Promise<void> {
         this.mode = [];
@@ -200,8 +205,8 @@ export class TitlePlay implements IPlay {
         gl.deleteProgram(this.program);
     }
     stepFrame(gl: WebGL2RenderingContext, stick: StickData): IPlay {
-        if (this.debugText) {
-            this.debugText.checkStick(stick);
+        if (this.debugTest) {
+            this.debugTest.checkStick(stick);
         }
         gl.clearColor(0, 0, 0, 1);
         gl.clearDepth(1.0);
@@ -322,6 +327,9 @@ export class TitlePlay implements IPlay {
                 this.close(gl);
                 setSkyName(["sky", "sky2", "sky3", "sky4"][gameType[this.select]]);
                 if (this.mode[this.select] & 1) {
+                    if (this.debugTest && this.debugTest.isDebugMode()) {
+                        return new FloorSelect(gl, playerData, true);
+                    }
                     return new FloorSelect(gl, playerData);
                 } else {
                     return new FloorStart(gl, playerData, 1, true);
@@ -330,8 +338,9 @@ export class TitlePlay implements IPlay {
         } else if (stick.isPause(true)) {
             playBgm('Coin', 1).then();
             this.startWait = 180;
-            if (this.debugText) {
-                if (this.debugText.checkStart(gameType[this.select] * 5 + this.select)) {
+            if (this.debugTest) {
+                if (this.debugTest.checkStart(gameType[this.select] * 5 + this.select)) {
+                    // Continueにする
                     this.mode[this.select] |= 1;
                 }
             }
