@@ -1,4 +1,4 @@
-import { StartRender, getStartRender } from "./FloorStart";
+import { FloorStart, StartRender, getStartRender } from "./FloorStart";
 import { FontRender, getFontRender } from "./FontRender";
 import { GameOverPlay } from "./GameOverPlay";
 import { IPlay, StickData, saveData } from "./PlayData";
@@ -87,6 +87,11 @@ const castDataList: CastData[] = [
     // GIL
     { name: "GILGAMETH", file: "", timer: [0, 15, 1, 15, 0, 15, 1, 15, 6, 15, 7, 15, 6, 15, 7, 15, 12, 15, 13, 15, 12, 15, 13, 15, 18, 15, 19, 15, 18, 15, 19, 15] }
 ];
+const castDataListExt: CastData[] = [
+    { name: "WHITE SLIME", file: "WHITE_Slime", timer: [0, 60, 1, 2, 0, 2, 2, 2, 0, 2, 1, 2, 0, 2, 2, 2] },
+    { name: "BLUE LIZARD MAN", file: "BLUE_LIZARD", timer: [0, 15, 1, 15, 0, 15, 1, 15, 2, 15, 3, 15, 2, 15, 3, 15, 4, 15, 5, 15, 4, 15, 5, 15, 6, 15, 7, 15, 6, 15, 7, 15] },
+];
+
 const itemNameList = [
     "COPPER MATTOCK",
     "SILVER MATTOCK",
@@ -136,6 +141,11 @@ const itemNameList = [
     "POTION OF DEATH",
     "POTION OF CURE",
 ];
+const itemNameListExt = [
+    "BOOK OF SLIME",
+    "BOOK OF LIGHT GATE DETECT",
+    "PLATINUM MATTOCK"
+];
 
 export class AllClearPlay implements IPlay {
     /**
@@ -170,8 +180,16 @@ export class AllClearPlay implements IPlay {
     }[] = [];
     private itemIndex = 0;
     private scrollY = 0;
+    private castList: CastData[];
+    private itemList: string[];
 
     public constructor(gl: WebGL2RenderingContext, private stage: StageData) {
+        this.castList = [...castDataList];
+        this.itemList = [...itemNameList];
+        if (FloorStart.gameMode === 3) {
+            this.castList.push(...castDataListExt);
+            this.itemList.push(...itemNameListExt);
+        }
         this.fontRender = getFontRender(gl);
         this.stageRender = getStageRender(gl);
         this.startRender = getStartRender(gl);
@@ -246,23 +264,23 @@ export class AllClearPlay implements IPlay {
                 }
             }
             if (lasty < 0.9) {
-                if (this.castIndex < castDataList.length) {
+                if (this.castIndex < this.castList.length) {
                     // 追加
                     this.castData.push({
-                        data: castDataList[this.castIndex],
+                        data: this.castList[this.castIndex],
                         x: 0.6,
                         y: 1.15,
-                        time: castDataList[this.castIndex].timer[1],
+                        time: this.castList[this.castIndex].timer[1],
                         index: 0
                     });
                     this.castIndex++;
                 }
-                while (this.itemIndex < itemNameList.length) {
+                while (this.itemIndex < this.itemList.length) {
                     // アイテムも追加
-                    if (itemNameList[this.itemIndex]) {
+                    if (this.itemList[this.itemIndex]) {
                         this.castData.push({
                             data: {
-                                name: itemNameList[this.itemIndex],
+                                name: this.itemList[this.itemIndex],
                                 file: 'item',
                                 timer: [this.itemIndex, 1000],
                             },

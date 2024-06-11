@@ -43,6 +43,7 @@ export enum PlayMode {
     Playing,
     LostWait,
     ClearWait,
+    ReturnWait,
     ZapWait,
     AllClear
 }
@@ -90,7 +91,7 @@ const itemIndexList = [
     "POTION:5",
     "POTION:6",
     "POTION:7",
-    "BOOK:5",
+    "BOOK:5",   // BOOK OF SLIME
     "BOOK:6",
     "MATTOCK:4"
 ];
@@ -427,6 +428,11 @@ export abstract class EnemyData {
         this.nextX = this.curX;
         this.nextY = this.curY;
         this.moveCount = 0;
+    }
+    public moveTo(x: number, y: number, count: number): void {
+        this.nextX = x;
+        this.nextY = y;
+        this.moveCount = count;
     }
     public getHP(): number {
         return 1;
@@ -774,7 +780,7 @@ export class PlayerData {
             this.restMattock = 2;
         } else if (type === 2) {
             this.restMattock = Math.floor(Math.random() * 3) + 2 + add;
-        } else if (type === 3) {
+        } else if (type >= 3) {
             this.restMattock = 255;
         }
         // ブーツもチェック
@@ -849,6 +855,9 @@ export class PlayerData {
     }
     public getDir(): number {
         return this.dir;
+    }
+    public setDir(dir: number): void {
+        this.dir = dir;
     }
 
     public stepNext(gl: WebGL2RenderingContext, data: StageData): void {
@@ -1200,6 +1209,16 @@ export class PlayerData {
         let dt = name.split(':');
         if (dt[0] === DUMMY_ITEM) {
             return;
+        } else if (dt[0] === 'GIL') {
+            // Gilの増減
+            const add = parseInt(dt[1]);
+            if (add < 0) {
+                // ロスト
+                this.hitPoint = 0;
+            } else {
+                this.resetPlayer += add;
+            }
+            return;
         }
         if (balanceItem.includes(name)) {
             if (!this.hasItem(BALANCE_ITEM)) {
@@ -1226,17 +1245,26 @@ export class PlayerData {
             this.lostItem(dt[0]);
             this.itemMap[dt[0]] = val;
         }
+        if (name === POTION_OF_ENEGY_DRAIN) {
+            this.hitPoint = 16;
+        } else if (name === POTION_OF_POWER) {
+            this.hitPoint += 48;
+        }
         let ix = this.getItemIndex(name);
         if (name === KEY_ITEM) {
             // 鍵
             this.drawItemList[0] = ix;
         } else {
+            if (this.drawItemList[1] >= 0) {
+                // 空いているところに追加する
+                for (let i = 2; i < this.drawItemList.length; i++) {
+                    if (this.drawItemList[i] < 0) {
+                        this.drawItemList[i] = this.drawItemList[1];
+                        break;
+                    }
+                }
+            }
             this.drawItemList[1] = ix;
-        }
-        if (name === POTION_OF_ENEGY_DRAIN) {
-            this.hitPoint = 16;
-        } else if (name === POTION_OF_POWER) {
-            this.hitPoint += 48;
         }
     }
     public lostItem(name: string): void {
@@ -1380,6 +1408,22 @@ export const STAGE_LOCK = 32;
  * ドルアーガを倒した
  */
 export const STAGE_KILL_DRUAGA = 64;
+/**
+ * スライムが見えない
+ */
+export const STAGE_HIDDEN_SLIME = 128;
+/**
+ * ステージが時々変わる
+ * 2intで10減る(globalCounter?)
+ * 18780 or 18800
+ * 17520
+ */
+export const STAGE_CHANGE_WALL = 256;
+
+/**
+ * プラチナマトックでのみ壊せる
+ */
+export const STAGE_WALL2 = 512;
 
 export class StageData {
     /**
@@ -1472,6 +1516,12 @@ export class StageData {
         count: number;
     };
 
+    /**
+     * 壁が次々変わる場合のインデックス
+     */
+    private changeWallIndex = 0;
+    private initWallData: string[] = [];
+
     public constructor(public readonly playerData: PlayerData, public readonly floorNum: number) {
         this.playMode = PlayMode.StarWait;
         this.playerPos = { x: this.nextInt(FLOOR_WIDTH), y: this.nextInt(FLOOR_HEIGHT) };
@@ -1530,6 +1580,12 @@ export class StageData {
      */
     public breakWall(bx: number, by: number, dir: number, src: string): number {
         const proc = () => {
+            if (this.isStageFlag(STAGE_WALL2) && src === 'Gil') {
+                // プラチナマトックのみ
+                if (!this.playerData.hasItem(MATTOCK_ITEM + ':4')) {
+                    return 0;
+                }
+            }
             playEffect('Break').then();
             this.addEvent({
                 type: 'Break',
@@ -1625,8 +1681,31 @@ export class StageData {
     public getFlash(): { type: number; count: number; } | undefined {
         return this.flashData;
     }
+    protected makeWall(data: string[], startY = 0): void {
+        this.wallData = [];
+        for (let y = 0; y < FLOOR_HEIGHT; y++) {
+            if (y + startY >= data.length) {
+                break;
+            }
+            const dt = data[y + startY];
+            let row: number[] = [];
+            for (let i = 0; i < FLOOR_WIDTH - 1; i++) {
+                if (i < dt.length) {
+                    row[i] = parseInt(dt.charAt(i));
+                } else {
+                    row[i] = 0;
+                }
+            }
+            this.wallData.push(row);
+        }
+        while (this.wallData.length < FLOOR_HEIGHT - 1) {
+            this.wallData.push([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        }
+    }
     public initStage(gl: WebGL2RenderingContext, data: Stage): void {
         setChime(0);
+        this.initWallData = data.data;
+        this.changeWallIndex = 0;
         this.timer = 20000;
         this.redTime = false;
         this.flashData = undefined;
@@ -1648,24 +1727,13 @@ export class StageData {
             this.treasureEvent = undefined;
         } else {
             this.treasureEvent = parseEvent(data.event);
+            if (data.treasure === KEY_ITEM) {
+                this.keyPos.x = -10;
+            }
         }
-        this.wallData = [];
         this.enemyList = [];
         this.playerData.init(gl, this.playerPos.x, this.playerPos.y);
-        for (let dt of data.data) {
-            let row: number[] = [];
-            for (let i = 0; i < FLOOR_WIDTH - 1; i++) {
-                if (i < dt.length) {
-                    row[i] = parseInt(dt.charAt(i));
-                } else {
-                    row[i] = 0;
-                }
-            }
-            this.wallData.push(row);
-        }
-        while (this.wallData.length < FLOOR_HEIGHT - 1) {
-            this.wallData.push([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        }
+        this.makeWall(data.data);
         for (let ene of data.enemy) {
             let dt = ene.split('*');
             if (dt[0] in enemyCreateMap) {
@@ -1809,12 +1877,13 @@ export class StageData {
                 playBgm("Miss", 1).then();
                 break;
             case PlayMode.ClearWait:
+            case PlayMode.ReturnWait:
                 this.globalCounter = 360;
                 for (let itm of clearLostItem) {
                     this.playerData.lostItem(itm);
                 }
                 this.floorInit.forEach(init => init.clear(this));
-                if (this.playMode === PlayMode.ClearWait) {
+                if (this.playMode === PlayMode.ClearWait || this.playMode === PlayMode.ReturnWait) {
                     // BGM
                     playBgm('FloorClear', 1).then();
                 }
@@ -1909,9 +1978,13 @@ export class StageData {
         if (this.playMode !== PlayMode.Playing) {
             return;
         }
-        this.enemyList.forEach(e => {
+        let enelist = [...this.enemyList];
+        enelist.forEach(e => {
             e.stepFrame(gl, this);
         });
+        if (this.playMode !== PlayMode.Playing) {
+            return;
+        }
         if (this.playerData.getHP() === 0) {
             this.setPlayMode(PlayMode.LostWait);
         } else {
@@ -1950,6 +2023,14 @@ export class StageData {
             }
             this.eventList = [];
             this.globalCounter = (this.globalCounter + 1) & 255;
+            if ((this.stageFlag & STAGE_CHANGE_WALL) && this.globalCounter === 0) {
+                // 壁を変化させる
+                let ny = (this.changeWallIndex + FLOOR_HEIGHT) % this.initWallData.length;
+                if (ny !== this.changeWallIndex) {
+                    this.changeWallIndex = ny;
+                    this.makeWall(this.initWallData, ny);
+                }
+            }
         }
     }
 

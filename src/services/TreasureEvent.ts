@@ -314,6 +314,8 @@ class EventOrder extends EventBase {
             if (this.index < this.eventList.length) {
                 return EventResult.Next;
             } else {
+                // Repeat用
+                this.index = 0;
                 return EventResult.OK;
             }
         }
@@ -1046,6 +1048,64 @@ class GilMovePsUra56 extends EventBase {
         return EventResult.None;
     }
 }
+class GilMoveYami84 extends EventBase {
+    // ,
+    private count = 0;
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        // スタート地点で剣を２回振る
+        // 連続で振ると出ない
+        const stpos = data.getTreasurePos();
+        const pos = data.playerData.getPosition();
+        if (stpos.x * BLOCK_SIZE === pos.x && stpos.y * BLOCK_SIZE === pos.y) {
+            if (data.playerData.getSwordIndex() > 0) {
+                if (data.playerData.getSwordIndex() === 1) {
+                    this.count |= 1;
+                }
+            } else if (this.count & 1) {
+                this.count++;
+                if (this.count >= 4) {
+                    return EventResult.OK;
+                } else {
+                    return EventResult.Next;
+                }
+            }
+        } else {
+            this.count = 0;
+        }
+        return EventResult.None;
+    }
+}
+class GilMoveYami99 extends EventBase {
+    private lastCount = -1;
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        // 扉の縦横すべての壁を壊す
+        const pos = data.getDoorPos();
+        let cnt = 0;
+        for (let x = 0; x < FLOOR_WIDTH - 1; x++) {
+            if (!data.canMove(x, pos.y, 1, 0)) {
+                cnt++;
+            }
+        }
+        for (let y = 0; y < FLOOR_HEIGHT - 1; y++) {
+            if (!data.canMove(pos.x, y, 0, 1)) {
+                cnt++;
+            }
+        }
+        if (cnt === 0) {
+            return EventResult.OK;
+        }
+        if (!data.playerData.hasItem(MATTOCK_ITEM)) {
+            return EventResult.NG;
+        }
+        if (this.lastCount < 0) {
+            this.lastCount = cnt;
+        } else if (cnt < this.lastCount) {
+            this.lastCount = cnt;
+            return EventResult.Next;
+        }
+        return EventResult.None;
+    }
+}
 
 class GilMove {
     @EventEntry("GilMove")
@@ -1086,6 +1146,10 @@ class GilMove {
             return new GilMovePsUra51();
         } else if (name === "PsUra56") {
             return new GilMovePsUra56();
+        } else if (name === "Yami84") {
+            return new GilMoveYami84();
+        } else if (name === "Yami99") {
+            return new GilMoveYami99();
         } else {
             console.log("Unkown GilMove", name);
         }
@@ -1243,6 +1307,42 @@ class EnemyMovePsUra21 extends EventBase {
         }
         return ret;
     }
+}
+class EnemyMoveYami72 extends EventBase {
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        let count = 0;
+        for (let ene of data.getEnemyList()) {
+            if (ene.name === 'DLUID' || ene.name === 'MAGE_Ghost') {
+                count++;
+                if (ene.getPosition().x === 0) {
+                    return EventResult.OK;
+                }
+            }
+        }
+        if (count === 0) {
+            return EventResult.NG;
+        }
+        return EventResult.None;
+    }
+}
+class EnemyMoveYami98 extends EventBase {
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        // シルバードラゴンとブラックドラゴンを重ねる
+        let pos: { x: number; y: number }[] = [];
+        for (let ene of data.getEnemyList()) {
+            if (ene instanceof Dragon) {
+                pos.push(ene.getPosition());
+            }
+        }
+        if (pos.length < 2) {
+            return EventResult.NG;
+        } else {
+            if (Math.abs(pos[0].x - pos[1].x) < 14 && Math.abs(pos[0].y - pos[1].y) < 14) {
+                return EventResult.OK;
+            }
+        }
+        return EventResult.None;
+    }
 
 }
 
@@ -1261,6 +1361,10 @@ class EnemyMove {
             return new EnemyMovePsUra19();
         } else if (name === "PsUra21") {
             return new EnemyMovePsUra21();
+        } else if (name === "Yami72") {
+            return new EnemyMoveYami72();
+        } else if (name === "Yami98") {
+            return new EnemyMoveYami98();
         } else {
             console.log("Unknown EnemyMove", name);
         }
@@ -1309,7 +1413,7 @@ class EneCount extends EventBase {
  */
 class ContEvent extends EventBase {
     private count: number = 0;
-    constructor(private timeCount: number, private eventList: EventBase[]) {
+    constructor(private timeCount: number, private eventList: EventBase[], private reset: boolean) {
         super();
     }
     public checkEvent(data: StageData, event: EventData[]): EventResult {
@@ -1330,14 +1434,44 @@ class ContEvent extends EventBase {
             } else if (this.count % 60 === 0) {
                 return EventResult.Next;
             }
-        } else {
+        } else if (this.reset) {
             this.count = 0;
         }
         return EventResult.None;
     }
     @EventEntry("Cont")
     static makeEvent(count: string, ...list: EventBase[]): EventBase {
-        return new ContEvent(parseInt(count), list);
+        return new ContEvent(parseInt(count), list, true);
+    }
+    @EventEntry("Total")
+    static makeTotalEvent(count: string, ...list: EventBase[]): EventBase {
+        return new ContEvent(parseInt(count), list, false);
+    }
+}
+class RepeatEvent extends EventBase {
+    private count = 0;
+
+    constructor(private repeatCount: number, private event: EventBase) {
+        super();
+    }
+    public checkEvent(data: StageData, event: EventData[]): EventResult {
+        const ret = this.event.checkEvent(data, event);
+        if (ret === EventResult.NG) {
+            return ret;
+        } else if (ret === EventResult.OK || ret === EventResult.Hold) {
+            this.count++;
+            if (this.count >= this.repeatCount) {
+                this.count = 0;
+                return EventResult.OK;
+            } else {
+                return EventResult.Next;
+            }
+        }
+        return EventResult.None;
+    }
+    @EventEntry("Repeat")
+    static makeEvent(count: string, event: EventBase): EventBase {
+        return new RepeatEvent(parseInt(count), event);
     }
 }
 
@@ -1592,6 +1726,7 @@ class KeyGet extends EventBase {
  * k:カイを取る（歩いて動き出す）
  * K:カイをその場に置く
  * 0:ロッドをアイテムに戻す
+ * X:レッドとグリーンのクリスタルロッドが左に集まる
  */
 class LastFloor extends EventBase {
     private index = 0;
@@ -1685,6 +1820,31 @@ class LastFloor extends EventBase {
                         const kai = this.getEnemy<IshtarKai>('Kai', data);
                         if (kai) {
                             kai.setIndex(3);
+                        }
+                    }
+                    break;
+                case 'X':
+                    {
+                        // アイテムが移動する
+                        const pos = data.playerData.getPosition();
+                        const nx = Math.round(pos.x / BLOCK_SIZE) * BLOCK_SIZE - BLOCK_SIZE;
+                        const ny = Math.round(pos.y / BLOCK_SIZE) * BLOCK_SIZE;
+                        for (let ene of data.getEnemyList()) {
+                            if (ene instanceof ItemEnemy) {
+                                const old = ene.getPosition();
+                                ene.moveTo(nx, ny, Math.max(Math.abs(nx - old.x), Math.abs(ny - old.y)) / 2);
+                            }
+                        }
+                    }
+                    break;
+                case '0':
+                    {
+                        // アイテムにする
+                        for (let ene of data.getEnemyList()) {
+                            if (ene instanceof ItemEnemy) {
+                                const item = ene as ItemEnemy;
+                                item.setItemName(ROD_ITEM + ':' + (1 << item.index));
+                            }
                         }
                     }
                     break;

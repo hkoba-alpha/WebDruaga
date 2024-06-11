@@ -1,6 +1,6 @@
 import { playDamage, playEffect } from "./SoundData";
 import { SpriteData } from "./SpriteData";
-import { ARMOR_ITEM, BALANCE_ITEM, BLOCK_SIZE, BOOTS_ITEM, CANDLE_ITEM, DUMMY_ITEM, EnemyData, EnemyEntry, FLOOR_HEIGHT, FLOOR_WIDTH, GUNTLET_ITEM, HELMET_ITEM, HitRect, KEY_ITEM, MEITH_ITEM, NECKLACE_ITEM, PEARL_ITEM, POTION_OF_CURE, POTION_OF_DRAGON_POT, POTION_OF_ENEGY_DRAIN, PlayMode, PlayerData, RING_ITEM, ROD_ITEM, SHIELD_ITEM, STAGE_DARK, STAGE_DEATH, STAGE_KILL_DRUAGA, SWORD_ITEM, SpritePosition, StageData, getMoveAdd, setTimerProc } from "./StageData";
+import { ARMOR_ITEM, BALANCE_ITEM, BLOCK_SIZE, BOOTS_ITEM, CANDLE_ITEM, DUMMY_ITEM, EnemyData, EnemyEntry, FLOOR_HEIGHT, FLOOR_WIDTH, GUNTLET_ITEM, HELMET_ITEM, HitRect, KEY_ITEM, MEITH_ITEM, NECKLACE_ITEM, PEARL_ITEM, POTION_OF_CURE, POTION_OF_DRAGON_POT, POTION_OF_ENEGY_DRAIN, PlayMode, PlayerData, RING_ITEM, ROD_ITEM, SHIELD_ITEM, STAGE_DARK, STAGE_DEATH, STAGE_HIDDEN_SLIME, STAGE_KILL_DRUAGA, SWORD_ITEM, SpritePosition, StageData, getMoveAdd, setTimerProc } from "./StageData";
 
 export class Slime extends EnemyData {
     /**
@@ -9,6 +9,7 @@ export class Slime extends EnemyData {
     private swingCount: number = 0;
     private waitCount: number = 0;
     private dir: number = 0;
+    private visibleFlag = true;
 
     public constructor(name: string, sprite: SpriteData, private minWait: number, private maxWait: number, private spellType = -1) {
         super(name, sprite);
@@ -21,6 +22,9 @@ export class Slime extends EnemyData {
      * @param data 
      */
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.visibleFlag && data.isStageFlag(STAGE_HIDDEN_SLIME)) {
+            this.visibleFlag = false;
+        }
         if (this.swingCount > 0) {
             // 移動中
             this.swingCount--;
@@ -59,6 +63,9 @@ export class Slime extends EnemyData {
         }
     }
     public getSpritePosition(): SpritePosition | null {
+        if (!this.visibleFlag) {
+            return null;
+        }
         let ix = 0;
         if (this.swingCount & 4) {
             ix = (this.swingCount & 2) > 0 ? 2 : 1;
@@ -70,58 +77,38 @@ export class Slime extends EnemyData {
         };
     }
 
-    @EnemyEntry("GREEN_SlimeS", { size: 1 })
-    @EnemyEntry("GREEN_SlimeL", { size: 2 })
-    @EnemyEntry("GREEN_Slime")
-    static green_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Slime(name, data.getSprite(gl, "GREEN_Slime"), 60, 300);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
+    @EnemyEntry("WHITE_Slime", { minWait: 10, maxWait: 50, spell: 1 })
+    @EnemyEntry("DKYELLOW_Slime", { minWait: 50, maxWait: 200, spell: 5 })
+    @EnemyEntry("DKYELLOW_SlimeS", { size: 1, minWait: 50, maxWait: 200, spell: 5 })
+    @EnemyEntry("DKYELLOW_SlimeL", { size: 2, minWait: 50, maxWait: 200, spell: 5 })
+    @EnemyEntry("DKGREEN_Slime", { minWait: 50, maxWait: 200, spell: 3 })
+    @EnemyEntry("DKGREEN_SlimeS", { size: 1, minWait: 50, maxWait: 200, spell: 3 })
+    @EnemyEntry("DKGREEN_SlimeL", { size: 2, minWait: 50, maxWait: 200, spell: 3 })
+    @EnemyEntry("BLUE_Slime", { minWait: 50, maxWait: 200, spell: 2 })
+    @EnemyEntry("BLUE_SlimeS", { size: 1, minWait: 50, maxWait: 200, spell: 2 })
+    @EnemyEntry("BLUE_SlimeL", { size: 2, minWait: 50, maxWait: 200, spell: 2 })
+    @EnemyEntry("RED_Slime", { minWait: 50, maxWait: 200, spell: 0 })
+    @EnemyEntry("RED_SlimeS", { size: 1, minWait: 50, maxWait: 200, spell: 0 })
+    @EnemyEntry("RED_SlimeL", { size: 2, minWait: 50, maxWait: 200, spell: 0 })
+    @EnemyEntry("BLACK_Slime", { minWait: 10, maxWait: 150 })
+    @EnemyEntry("BLACK_SlimeS", { size: 1, minWait: 10, maxWait: 150 })
+    @EnemyEntry("BLACK_SlimeL", { size: 2, minWait: 10, maxWait: 150 })
+    @EnemyEntry("GREEN_SlimeS", { size: 1, minWait: 60, maxWait: 300 })
+    @EnemyEntry("GREEN_SlimeL", { size: 2, minWait: 60, maxWait: 300 })
+    @EnemyEntry("GREEN_Slime", { minWait: 60, maxWait: 300 })
+    static make_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number, option: any): void {
+        let sprite = name;
+        if ("SL12345".indexOf(name.charAt(name.length - 1)) >= 0) {
+            sprite = name.substring(0, name.length - 1);
         }
-    }
-    @EnemyEntry("BLACK_Slime")
-    static black_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Slime(name, data.getSprite(gl, name), 10, 150);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
+        if (option.sprite) {
+            sprite = option.sprite;
         }
-    }
-    @EnemyEntry("RED_Slime")
-    static red_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        const minWait = option.minWait || 60;
+        const maxWait = option.maxWait || 300;
+        const spell = option.spell ?? -1;
         for (let i = 0; i < num; i++) {
-            const ene = new Slime(name, data.getSprite(gl, name), 50, 200, 0);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("BLUE_Slime")
-    static blue_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Slime(name, data.getSprite(gl, name), 50, 200, 2);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-
-    @EnemyEntry("DKGREEN_Slime")
-    static dkgreen_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Slime(name, data.getSprite(gl, name), 50, 200, 3);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("DKYELLOW_Slime")
-    static dkyellow_slime(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Slime(name, data.getSprite(gl, name), 50, 200, 5);
+            const ene = new Slime(name, data.getSprite(gl, sprite), minWait, maxWait, spell);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             data.addEnemy(ene);
@@ -278,100 +265,45 @@ class Knight extends EnemyData {
         return super.checkDamage(player);
     }
 
-    @EnemyEntry("RED_Knight")
-    static red_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+    @EnemyEntry("BLIZARD_Knight", { speed: 48, moveDir: 1, param: knightParams.lizard, sprite: "BLUE_LIZARD" })
+    @EnemyEntry("LIZARD_Knight", { speed: 48, moveDir: 1, param: knightParams.lizard })
+    @EnemyEntry("HYPER_Knight", { speed: 48, moveDir: 1, param: knightParams.hyper })
+    @EnemyEntry("MIRROR_Knight2", { speed: 0, moveDir: 1, param: knightParams.mirror, moveCount: 16 })
+    @EnemyEntry("MIRROR_Knight", { speed: 0, moveDir: 1, param: knightParams.mirror })
+    @EnemyEntry("BLACK_Knight", { speed: 48, moveDir: 1, param: knightParams.black })
+    @EnemyEntry("RED_Knight", { speed: 48, moveDir: 1, param: knightParams.red })
+    @EnemyEntry("BLUE_Knight", { speed: 48, moveDir: 1, param: knightParams.blue })
+    @EnemyEntry("BLUE_Knight2", { speed: 48, moveDir: 1, param: knightParams.blue, moveCount: 16 })
+    @EnemyEntry("BLUE_Knight3", { speed: 48, moveDir: 1, param: knightParams.blue })
+    static make_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number, option: {
+        sprite?: string;
+        speed: number;
+        moveDir?: number;
+        param: number[];
+        moveCount?: number;
+    }): void {
+        let sprite = name;
+        if ("SL12345".indexOf(name.charAt(name.length - 1)) >= 0) {
+            sprite = name.substring(0, name.length - 1);
+        }
+        if (option.sprite) {
+            sprite = option.sprite;
+        }
+        let speed = option.speed;
+        if (!speed) {
+            // Gilと同じ
+            speed = data.playerData.hasItem(BOOTS_ITEM) ? 24 : 48;
+        }
         for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, name), 48, 1, knightParams.red);
+            const ene = new Knight(name, data.getSprite(gl, sprite), speed, option.moveDir ?? 1, option.param);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
+            if (option.moveCount) {
+                ene.moveCount = option.moveCount;
+            }
             data.addEnemy(ene);
         }
     }
-    @EnemyEntry("BLUE_Knight")
-    static blue_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, "BLUE_Knight"), 48, 1, knightParams.blue);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("BLUE_Knight2")
-    static blue_knight2(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, "BLUE_Knight"), 48, 1, knightParams.blue);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            ene.moveCount = 16;
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("BLUE_Knight3")
-    static blue_knight3(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, "BLUE_Knight"), 48, 1, knightParams.blue);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("BLACK_Knight")
-    static black_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, name), 48, 1, knightParams.black);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("MIRROR_Knight")
-    static mirror_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
-        if (data.playerData.getItem(BOOTS_ITEM) > 0) {
-            speed = 24;
-        }
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, name), speed, 1, knightParams.mirror);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("MIRROR_Knight2")
-    static mirror_knight2(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
-        if (data.playerData.getItem(BOOTS_ITEM) > 0) {
-            speed = 24;
-        }
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, "MIRROR_Knight"), speed, 1, knightParams.mirror);
-            ene.moveCount = 8;
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("HYPER_Knight")
-    static hyper_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, name), speed, 1, knightParams.hyper);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("LIZARD_Knight")
-    static lizard_knight(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
-        for (let i = 0; i < num; i++) {
-            const ene = new Knight(name, data.getSprite(gl, name), speed, 1, knightParams.lizard);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-
 }
 
 /**
@@ -455,44 +387,40 @@ class Roper extends Knight {
     constructor(name: string, sprite: SpriteData, speed: number, moveDir: number, param: number[]) {
         super(name, sprite, speed, moveDir, param, 1);
     }
-    @EnemyEntry("GREEN_Roper")
-    static green_roper(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
-        for (let i = 0; i < num; i++) {
-            const ene = new Roper(name, data.getSprite(gl, name), speed, 1, knightParams.green_roper);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
+
+    @EnemyEntry("RED_RoperL", { size: 2, speed: 48, moveDir: 1, param: knightParams.red_roper })
+    @EnemyEntry("RED_Roper", { speed: 48, moveDir: 1, param: knightParams.red_roper })
+    @EnemyEntry("BLUE_RoperL", { size: 2, speed: 48, moveDir: 1, param: knightParams.blue_roper })
+    @EnemyEntry("BLUE_Roper", { speed: 48, moveDir: 1, param: knightParams.blue_roper })
+    @EnemyEntry("GREEN_Roper2", { speed: 48, moveDir: 1, param: knightParams.green_roper, moveCount: 8 })
+    @EnemyEntry("GREEN_RoperL", { size: 2, speed: 48, moveDir: 1, param: knightParams.green_roper })
+    @EnemyEntry("GREEN_Roper", { speed: 48, moveDir: 1, param: knightParams.green_roper })
+    static make_roper(gl: WebGL2RenderingContext, data: StageData, name: string, num: number, option: {
+        sprite?: string;
+        speed: number;
+        moveDir?: number;
+        param: number[];
+        moveCount?: number;
+    }): void {
+        let sprite = name;
+        if ("SL12345".indexOf(name.charAt(name.length - 1)) >= 0) {
+            sprite = name.substring(0, name.length - 1);
         }
-    }
-    @EnemyEntry("GREEN_Roper2")
-    static green_roper2(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
-        for (let i = 0; i < num; i++) {
-            const ene = new Roper(name, data.getSprite(gl, "GREEN_Roper"), speed, 1, knightParams.green_roper);
-            ene.moveCount = 8;
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
+        if (option.sprite) {
+            sprite = option.sprite;
         }
-    }
-    @EnemyEntry("RED_Roper")
-    static red_roper(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
-        for (let i = 0; i < num; i++) {
-            const ene = new Roper(name, data.getSprite(gl, name), speed, 1, knightParams.red_roper);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
+        let speed = option.speed;
+        if (!speed) {
+            // Gilと同じ
+            speed = data.playerData.hasItem(BOOTS_ITEM) ? 24 : 48;
         }
-    }
-    @EnemyEntry("BLUE_Roper")
-    static blue_roper(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        let speed = 48;
         for (let i = 0; i < num; i++) {
-            const ene = new Roper(name, data.getSprite(gl, name), speed, 1, knightParams.blue_roper);
+            const ene = new Roper(name, data.getSprite(gl, sprite), speed, option.moveDir ?? 1, option.param);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
+            if (option.moveCount) {
+                ene.moveCount = option.moveCount;
+            }
             data.addEnemy(ene);
         }
     }
@@ -683,28 +611,14 @@ export class Dragon extends Knight {
         super.gotDamage(data);
     }
 
-    @EnemyEntry("QUOX_Dragon")
-    static quox_dragon(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+    @EnemyEntry("BLACK_Dragon", { param: knightParams.black_dragon })
+    @EnemyEntry("SILVER_Dragon", { param: knightParams.silver_dragon })
+    @EnemyEntry("QUOX_Dragon", { param: knightParams.quox })
+    @EnemyEntry("QUOX_DragonL", { size: 2, param: knightParams.quox, sprite: "QUOX_Dragon" })
+    static make_dragon(gl: WebGL2RenderingContext, data: StageData, name: string, num: number, option: { param: number[]; sprite?: string; }): void {
+        let sprite = option.sprite || name;
         for (let i = 0; i < num; i++) {
-            const ene = new Dragon(name, data.getSprite(gl, name), 96, 1, knightParams.quox);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("SILVER_Dragon")
-    static silver_dragon(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Dragon(name, data.getSprite(gl, name), 96, 1, knightParams.silver_dragon);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("BLACK_Dragon")
-    static black_dragon(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Dragon(name, data.getSprite(gl, name), 96, 1, knightParams.black_dragon);
+            const ene = new Dragon(name, data.getSprite(gl, sprite), 96, 1, option.param);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             data.addEnemy(ene);
@@ -1128,43 +1042,18 @@ class Magician extends EnemyData {
         // ダメージは与えない
     }
 
-    @EnemyEntry("MAGE")
-    static mage(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+    @EnemyEntry("WIZARD", { spell: 3 })
+    @EnemyEntry("DLUID", { spell: 2 })
+    @EnemyEntry("SORCERER", { spell: 1 })
+    @EnemyEntry("MAGE", { spell: 0 })
+    static make_magician(gl: WebGL2RenderingContext, data: StageData, name: string, num: number, option: { spell: number; }): void {
         for (let i = 0; i < num; i++) {
-            const ene = new Magician(name, data.getSprite(gl, name), 0);
+            const ene = new Magician(name, data.getSprite(gl, name), option.spell);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             data.addEnemy(ene);
         }
     }
-    @EnemyEntry("SORCERER")
-    static sorcerer(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Magician(name, data.getSprite(gl, name), 1);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("DLUID")
-    static druid(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Magician(name, data.getSprite(gl, name), 2);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("WIZARD")
-    static wizard(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Magician(name, data.getSprite(gl, name), 3);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-
     public getPosition(): { x: number; y: number; } {
         if (this.viewCount === 0) {
             return {
@@ -1336,28 +1225,12 @@ class Ghost extends EnemyData {
         return super.checkDamage(player);
     }
 
-    @EnemyEntry("MAGE_Ghost")
-    static mage(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+    @EnemyEntry("WIZARD_Ghost", { spell: 3 })
+    @EnemyEntry("DLUID_Ghost", { spell: 2 })
+    @EnemyEntry("MAGE_Ghost", { spell: 0 })
+    static make_ghost(gl: WebGL2RenderingContext, data: StageData, name: string, num: number, option: { spell: number; }): void {
         for (let i = 0; i < num; i++) {
-            const ene = new Ghost(name, data.getSprite(gl, name), 0);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("DLUID_Ghost")
-    static druid(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Ghost(name, data.getSprite(gl, name), 2);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("WIZARD_Ghost")
-    static wizard(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Ghost(name, data.getSprite(gl, name), 3);
+            const ene = new Ghost(name, data.getSprite(gl, name), option.spell);
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
             data.addEnemy(ene);
@@ -1446,63 +1319,23 @@ export class Wisp extends EnemyData {
         return false;
     }
 
-    @EnemyEntry("BLUE_Wisp")
-    public static blue(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+    @EnemyEntry("RED_Wisp4", { speed: 24, red: true })
+    @EnemyEntry("RED_Wisp8", { speed: 12, red: true })
+    @EnemyEntry("RED_Wisp", { speed: 48, red: true })
+    @EnemyEntry("BLUE_Wisp4", { speed: 24 })
+    @EnemyEntry("BLUE_Wisp8", { speed: 12 })
+    @EnemyEntry("BLUE_Wisp", { speed: 48 })
+    public static make_wisp(gl: WebGL2RenderingContext, data: StageData, name: string, num: number, option: { speed: number; red?: boolean; moveCount?: number; }): void {
         for (let i = 0; i < num; i++) {
-            const ene = new Wisp(name, data.getSprite(gl, "Wisp"), false);
+            const ene = new Wisp(name, data.getSprite(gl, "Wisp"), option.red || false);
+            ene.speed = option.speed;
             const pos = data.randomPos();
             ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("BLUE_Wisp8")
-    public static blue8(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Wisp(name, data.getSprite(gl, "Wisp"), false);
-            ene.speed = 12;
-            ene.moveCount = i * 8 + 8;
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("BLUE_Wisp4")
-    public static blue4(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Wisp(name, data.getSprite(gl, "Wisp"), false);
-            ene.speed = 24;
-            ene.moveCount = i * 4 + 4;
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("RED_Wisp")
-    public static red(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Wisp(name, data.getSprite(gl, "Wisp"), true);
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("RED_Wisp4")
-    public static red4(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Wisp(name, data.getSprite(gl, "Wisp"), true);
-            ene.speed = 24;
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
-            data.addEnemy(ene);
-        }
-    }
-    @EnemyEntry("RED_Wisp8")
-    public static red8(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
-        for (let i = 0; i < num; i++) {
-            const ene = new Wisp(name, data.getSprite(gl, "Wisp"), true);
-            ene.speed = 12;
-            const pos = data.randomPos();
-            ene.init(pos.x, pos.y);
+            if (option.moveCount) {
+                ene.moveCount = option.moveCount;
+            } else {
+                ene.moveCount = i * option.speed / 2 + option.speed;
+            }
             data.addEnemy(ene);
         }
     }
@@ -1560,7 +1393,7 @@ export class DummyExit extends EnemyData {
         return false;
     }
     @EnemyEntry("DummyExit")
-    public static red(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+    public static make(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
         const doorpos = data.getDoorPos();
         for (let i = 0; i < num; i++) {
             const ene = new DummyExit(name, data.getSprite(gl, "stage"));
@@ -1573,6 +1406,42 @@ export class DummyExit extends EnemyData {
                 }
             }
         }
+    }
+}
+export class DummyExit2 extends DummyExit {
+    /**
+     * 0:しまっている, 1: 鍵を取った後, 2:開いている
+     */
+    private mode = 0;
+
+    protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.mode === 0) {
+            if (data.playerData.hasItem(KEY_ITEM)) {
+                this.mode = 1;
+            }
+        } else if (this.mode === 1) {
+            // 近くに来たら開ける
+            const pos = data.playerData.getPosition();
+            if (Math.abs(pos.x - this.curX) < BLOCK_SIZE && Math.abs(pos.y - this.curY) < BLOCK_SIZE) {
+                this.mode = 2;
+            }
+        } else {
+            // 重なったら戻る
+            const pos = data.playerData.getPosition();
+            if (pos.x === this.curX && pos.y === this.curY) {
+                // 一つ戻る
+                data.setPlayMode(PlayMode.ReturnWait);
+                data.playerData.setDir(1);
+            }
+        }
+    }
+
+    public getSpritePosition(): SpritePosition | null {
+        return {
+            x: this.curX / BLOCK_SIZE,
+            y: -0.3,
+            index: this.mode < 2 ? 5 : 1
+        };
     }
 }
 
@@ -2080,7 +1949,7 @@ export class IshtarKai extends EnemyData {
      * 
      * @param name 
      * @param sprite 
-     * @param index 0:イシター, 1:石, 2:カイ, 3:歩いているカイ
+     * @param index 0:イシター, 1:石, 2:カイ, 3:歩いているカイ,-1:偽物イシター
      */
     constructor(name: string, sprite: SpriteData, private index: number) {
         super(name, sprite);
@@ -2096,12 +1965,26 @@ export class IshtarKai extends EnemyData {
                 this.curX = pos.x - BLOCK_SIZE;
                 this.nextX = this.curX;
             }
+        } else if (this.index < 0) {
+            const tm = data.getTimer();
+            if (tm < 18000) {
+                this.index = -1;
+            } else if (tm > 19500 || tm < 18500) {
+                this.index = (tm & 4) ? -1 : -2;
+            } else {
+                this.index = -2;
+            }
         }
     }
     public getSpritePosition(): SpritePosition | null {
         let ix = this.index;
         if (ix === 3) {
             ix = (this.curX & 8) > 0 ? 4 : 3;
+        } else if (ix < 0) {
+            if (ix === -1) {
+                return null;
+            }
+            ix = 0;
         }
         return {
             x: this.curX / BLOCK_SIZE,
@@ -2110,8 +1993,18 @@ export class IshtarKai extends EnemyData {
         };
     }
 
+    protected checkDamage(player: PlayerData): boolean {
+        if (this.index < 0 || this.index === 1) {
+            return false;
+        }
+        return super.checkDamage(player);
+    }
     protected onDead(data: StageData): void {
-        data.setPlayMode(PlayMode.ZapWait);
+        if (data.isLastFloor()) {
+            data.setPlayMode(PlayMode.ZapWait);
+        } else {
+            super.onDead(data);
+        }
     }
     protected checkAttack(player: PlayerData): boolean {
         return false;
@@ -2120,6 +2013,12 @@ export class IshtarKai extends EnemyData {
     @EnemyEntry("Ishtar")
     public static ishtar(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
         const ene = new IshtarKai("Ishtar", data.getSprite(gl, 'Ishtar'), 0);
+        ene.init(FLOOR_WIDTH - 1, 4);
+        data.addEnemy(ene);
+    }
+    @EnemyEntry("Ishtar2")
+    public static ishtar2(gl: WebGL2RenderingContext, data: StageData, name: string, num: number): void {
+        const ene = new IshtarKai("Ishtar", data.getSprite(gl, 'Ishtar'), -1);
         ene.init(FLOOR_WIDTH - 1, 4);
         data.addEnemy(ene);
     }
@@ -2138,10 +2037,22 @@ export class IshtarKai extends EnemyData {
 }
 
 export class ItemEnemy extends EnemyData {
-    public constructor(name: string, sprite: SpriteData, private index: number) {
+    private itemName: string = "";
+
+    public constructor(name: string, sprite: SpriteData, public readonly index: number) {
         super(name, sprite);
     }
     protected nextMove(gl: WebGL2RenderingContext, data: StageData): void {
+        if (this.itemName) {
+            const pos = data.playerData.getPosition();
+            if (this.curX === pos.x && this.curY === pos.y) {
+                data.playerData.gotItem(this.itemName);
+                data.removeEnemy(this);
+            }
+        }
+    }
+    public setItemName(name: string): void {
+        this.itemName = name;
     }
     public getSpritePosition(): SpritePosition | null {
         return {
@@ -2160,19 +2071,21 @@ export class ItemEnemy extends EnemyData {
 }
 
 setTimerProc((gl, data) => {
-    switch (data.getTimer()) {
-        case 60:
-            Wisp.blue(gl, data, "BLUE_Wisp", 1);
-            break;
-        case 55:
-            Wisp.red(gl, data, "RED_Wisp", 1);
-            break;
-        case 50:
-            Wisp.blue8(gl, data, "BLUE_Wisp", 1);
-            break;
-        case 45:
-            Wisp.red8(gl, data, "RED_Wisp", 1);
-            break;
+    if (data.isRedTime()) {
+        switch (data.getTimer()) {
+            case 60:
+                Wisp.make_wisp(gl, data, "BLUE_Wisp", 1, { speed: 48, moveCount: 60 })
+                break;
+            case 55:
+                Wisp.make_wisp(gl, data, "RED_Wisp", 1, { speed: 48, red: true, moveCount: 60 })
+                break;
+            case 50:
+                Wisp.make_wisp(gl, data, "BLUE_Wisp", 1, { speed: 12, moveCount: 60 })
+                break;
+            case 45:
+                Wisp.make_wisp(gl, data, "RED_Wisp", 1, { speed: 12, red: true, moveCount: 60 })
+                break;
+        }
     }
 });
 

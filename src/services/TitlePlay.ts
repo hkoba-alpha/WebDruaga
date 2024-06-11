@@ -50,9 +50,9 @@ THE PRINCE GILGAMESH
       TO HELP KI IN
         THE TOWER OF DRUAGA`;
 
-const gameTypeName = ["DATA", "ANOTHER", "SHADDOW", "DARK"];
+const gameTypeName = ["NORMAL", "ANOTHER", "SHADDOW", "DARK"];
 
-let lastGameType = 0;
+let gameType: number[] = [0, 0, 0, 0, 0];
 
 class DebugTest {
     private mode = 0;
@@ -133,7 +133,6 @@ export class TitlePlay implements IPlay {
     private select = 0;
     private saveData: SaveData[] = [];
     private mode: number[] = [];
-    private gameType: number = lastGameType;
     private startWait = 0;
     private debugText?: DebugTest;
 
@@ -184,7 +183,7 @@ export class TitlePlay implements IPlay {
         this.mode = [];
         this.saveData = [];
         for (let i = 0; i < 5; i++) {
-            const dt = await saveData.getSaveData(this.gameType * 5 + i);
+            const dt = await saveData.getSaveData(gameType[i] * 5 + i);
             this.saveData.push(dt);
             if (dt.data.maxStage === 1 && Object.keys(dt.data.itemMap).length === 0) {
                 // 初期
@@ -257,19 +256,19 @@ export class TitlePlay implements IPlay {
                     y += 0.05;
                 }
             }
-            let typeCol = [1, 1, 1];
-            switch (this.gameType) {
-                case 1:
-                    typeCol = [0.2, 0.8, 0.2];
-                    break;
-                case 2:
-                    typeCol = [0.4, 0.5, 1];
-                    break;
-                case 3:
-                    typeCol = [0.8, 0.3, 0.4];
-                    break;
-            }
             for (let i = 0; i < this.saveData.length; i++) {
+                let typeCol = [1, 1, 1];
+                switch (gameType[i]) {
+                    case 1:
+                        typeCol = [0.2, 0.8, 0.2];
+                        break;
+                    case 2:
+                        typeCol = [0.4, 0.5, 1];
+                        break;
+                    case 3:
+                        typeCol = [0.8, 0.3, 0.4];
+                        break;
+                }
                 const fx = 0.1;
                 const fy = 0.35 * i - 0.9;
                 if (this.select === i) {
@@ -278,7 +277,7 @@ export class TitlePlay implements IPlay {
                     }
                     this.fontRender.drawFrame(gl, [fx, fy, 0.8, 0.3], [0.3, 0.2, 0], [0.7, 1, 1]);
                 }
-                let type = gameTypeName[this.gameType] + " " + (i + 1);
+                let type = gameTypeName[gameType[i]] + " " + (i + 1);
                 this.fontRender.draw(gl, type, [fx + 0.05, fy + 0.05, type.length * 0.05, 0.06], typeCol);
                 if (this.mode[i] & 1) {
                     let stg = "< FLOOR " + this.saveData[i].data.curStage + "/" + this.saveData[i].data.maxStage;
@@ -306,7 +305,7 @@ export class TitlePlay implements IPlay {
                 } else if (stick.isRight(true)) {
                     this.mode[this.select] |= (this.mode[this.select] >> 1);
                 } else if (stick.isSelect(true)) {
-                    this.gameType = (this.gameType + 1) % 4;
+                    gameType[this.select] = (gameType[this.select] + 1) % 4;
                     this.loadData().then();
                 }
             }
@@ -318,10 +317,10 @@ export class TitlePlay implements IPlay {
             this.startWait--;
             if (this.startWait === 0) {
                 let playerData: PlayerData;
-                const ix = this.gameType * 5 + this.select;
+                const ix = gameType[this.select] * 5 + this.select;
                 playerData = new PlayerData(gl, stick, ix);
                 this.close(gl);
-                setSkyName(["sky", "sky2", "sky3", "sky4"][this.gameType]);
+                setSkyName(["sky", "sky2", "sky3", "sky4"][gameType[this.select]]);
                 if (this.mode[this.select] & 1) {
                     return new FloorSelect(gl, playerData);
                 } else {
@@ -331,9 +330,8 @@ export class TitlePlay implements IPlay {
         } else if (stick.isPause(true)) {
             playBgm('Coin', 1).then();
             this.startWait = 180;
-            lastGameType = this.gameType;
             if (this.debugText) {
-                if (this.debugText.checkStart(this.gameType * 5 + this.select)) {
+                if (this.debugText.checkStart(gameType[this.select] * 5 + this.select)) {
                     this.mode[this.select] |= 1;
                 }
             }

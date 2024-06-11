@@ -6,7 +6,7 @@ import { GameOverPlay } from "./GameOverPlay";
 import { IPlay, StickData } from "./PlayData";
 import { playBgm } from "./SoundData";
 import { PlayerSpriteData, SpriteData } from "./SpriteData";
-import { BLOCK_SIZE, DragonFire, KEY_ITEM, PlayMode, STAGE_DARK, STAGE_FILE_NAME, STAGE_HIDDEN_DOOR, STAGE_HIDDEN_KEY, StageData } from "./StageData";
+import { BLOCK_SIZE, DragonFire, KEY_ITEM, PlayMode, STAGE_DARK, STAGE_FILE_NAME, STAGE_HIDDEN_DOOR, STAGE_HIDDEN_KEY, STAGE_WALL2, StageData } from "./StageData";
 import { ZapPlay } from "./ZapPlay";
 
 const v_shader = `
@@ -383,7 +383,7 @@ export class StageRender {
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
         // Texture
-        const imgList = ["floor", "wall", "block", "ground", "sky", "sky2", "sky3", "sky4"];
+        const imgList = ["floor", "wall", "wall2", "block", "ground", "sky", "sky2", "sky3", "sky4"];
         for (let name of imgList) {
             this.getTexture(gl, name);
         }
@@ -516,6 +516,7 @@ export class StageRender {
                 }
                 break;
             case PlayMode.ClearWait:
+            case PlayMode.ReturnWait:
                 pos.y += Math.min(0, stage.getGlobalCount() / 300.0 - 0.25);
                 if (pos.y < -0.2) {
                     visible = false;
@@ -575,7 +576,11 @@ export class StageRender {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         // 柱
-        gl.bindTexture(gl.TEXTURE_2D, this.texMap['wall']);
+        if (stage.isStageFlag(STAGE_WALL2)) {
+            gl.bindTexture(gl.TEXTURE_2D, this.texMap['wall2']);
+        } else {
+            gl.bindTexture(gl.TEXTURE_2D, this.texMap['wall']);
+        }
         for (let y = 1; y < 9; y++) {
             for (let x = 1; x < 18; x++) {
                 gl.uniform4f(this.uBlk, x, y, 0, 0);
@@ -927,6 +932,9 @@ export class StagePlay implements IPlay {
             } else if (mode === PlayMode.ClearWait) {
                 // 次のステージ
                 return new FloorStart(gl, this.stageData.playerData, this.stageData.floorNum + 1);
+            } else if (mode === PlayMode.ReturnWait) {
+                // 前のステージ
+                return new FloorStart(gl, this.stageData.playerData, this.stageData.floorNum - 1);
             } else if (mode === PlayMode.ZapWait) {
                 // ZAP
                 return new ZapPlay(gl, this.stageData.playerData);

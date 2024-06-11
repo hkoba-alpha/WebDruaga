@@ -1,5 +1,5 @@
-import { DummyExit } from "./Enemy";
-import { ARMOR_ITEM, BOOK_ITEM, CANDLE_ITEM, FloorInit, FloorInitBase, GUNTLET_ITEM, POTION_ITEM, POTION_OF_CURE, POTION_OF_UNLOCK, PlayMode, SHIELD_ITEM, STAGE_DARK, STAGE_HIDDEN_DOOR, STAGE_HIDDEN_KEY, STAGE_KILL_DRUAGA, STAGE_LOCK, SWORD_ITEM, StageData } from "./StageData";
+import { DummyExit, DummyExit2 } from "./Enemy";
+import { ARMOR_ITEM, BOOK_ITEM, CANDLE_ITEM, FloorInit, FloorInitBase, GUNTLET_ITEM, POTION_ITEM, POTION_OF_CURE, POTION_OF_UNLOCK, PlayMode, SHIELD_ITEM, STAGE_CHANGE_WALL, STAGE_DARK, STAGE_HIDDEN_DOOR, STAGE_HIDDEN_KEY, STAGE_HIDDEN_SLIME, STAGE_KILL_DRUAGA, STAGE_LOCK, STAGE_WALL2, SWORD_ITEM, StageData } from "./StageData";
 
 @FloorInit("Candle")
 class CandleInit extends FloorInitBase {
@@ -50,11 +50,43 @@ class ExitInit extends Dark2Init {
     }
 }
 
+@FloorInit("Exit2")
+class Exit2Init extends Dark2Init {
+    public init(gl: WebGL2RenderingContext, data: StageData): void {
+        if (data.playerData.getItem(BOOK_ITEM) < 6) {
+            data.setStageFlag(STAGE_HIDDEN_DOOR);
+        }
+        super.init(gl, data);
+        // Dummy
+        const doorpos = data.getDoorPos();
+        const keypos = data.getKeyPos();
+        const ene = new DummyExit2("dummy", data.getSprite(gl, 'stage'));
+        while (true) {
+            const pos = data.randomPos();
+            pos.y = 0;
+            if (pos.x !== doorpos.x && (pos.x !== keypos.x || pos.y !== keypos.y)) {
+                ene.init(pos.x, pos.y);
+                data.addEnemy(ene);
+                break;
+            }
+        }
+    }
+}
+
 @FloorInit("Key")
 class KeyInit extends ExitInit {
     public init(gl: WebGL2RenderingContext, data: StageData): void {
         if (data.playerData.getItem(BOOK_ITEM) < 4) {
             data.setStageFlag(STAGE_HIDDEN_KEY);
+        }
+        super.init(gl, data);
+    }
+}
+@FloorInit("Slime")
+class SlimeInit extends KeyInit {
+    public init(gl: WebGL2RenderingContext, data: StageData): void {
+        if (data.playerData.getItem(BOOK_ITEM) < 5) {
+            data.setStageFlag(STAGE_HIDDEN_SLIME);
         }
         super.init(gl, data);
     }
@@ -74,6 +106,12 @@ class CureInit extends FloorInitBase {
     }
 }
 
+@FloorInit("Mattock")
+class MattockInit extends FloorInitBase {
+    public init(gl: WebGL2RenderingContext, data: StageData): void {
+        data.setStageFlag(STAGE_WALL2);
+    }
+}
 
 @FloorInit("Druaga")
 class DruagaInit extends FloorInitBase {
@@ -109,6 +147,15 @@ class ChoiceInit extends FloorInitBase {
                 ene.init(x, 0);
                 data.addEnemy(ene);
             }
+        }
+    }
+}
+
+@FloorInit("Change")
+class ChangeInit extends FloorInitBase {
+    public init(gl: WebGL2RenderingContext, data: StageData): void {
+        if (data.playerData.hasItem(BOOK_ITEM)) {
+            data.setStageFlag(STAGE_CHANGE_WALL);
         }
     }
 }
